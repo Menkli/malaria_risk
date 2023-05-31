@@ -1,0 +1,259 @@
+---
+title: "Long-term trends in malaria prevalence"
+author: "Linda Petutschnig"
+date: "28 04 2023"
+output: 
+  html_document:
+    theme: paper
+    highlight: default
+---
+
+This script performs the following tasks:
+
+- Accesses the Malaria Atlas Project database and downloads the "Plasmodium falciparum incidence" data for all available years, cropping it to the Area of Interest (AOI).
+- Manually adds additional years that were not available via direct download.
+- Combines the individual years into a raster brick, which is then converted to points. Each point includes attribute columns with values for the respective years.
+- Pre-processes and manipulates the data to prepare it for analysis.
+- Generates a graph illustrating the development of Pf-incidence from 2000 to 2020 for all locations.
+- Identifies a shift in the general trend around 2013 and conducts an in-depth analysis of the change between 2013 and 2020.
+- Integrates the Pf-incidence values with a hexagonal grid prepared in a separate script.
+- Uses the percentage change in Pf-incidence between 2013 and 2020 as a risk indicator and visualizes it on a map.
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load libraries
+
+```{r malariaAtlas, message = FALSE, warning = FALSE}
+
+library(malariaAtlas) # download malaria data
+library(sf) # working with spatial vector data (simple features)
+library(raster) # working with raster data
+library(dplyr) # tidy data manipulation
+library(here) # getting rid of relative paths
+library(tidyr) # tidying data
+library(lubridate) # to work with dates
+library(stringr) # to manipulate sting variables
+library(ggplot2) # plotting
+library(tsibble) # time series analysis
+library(fable) # time series analysis
+library(MetBrewer) # color palettes for plots
+library(tmap) # # for map making
+
+source(here("db-connection.R")) # connect to database
+source(here("hexagonify.R")) # a self-written function to summarize raster cells or points into hexagonal polygons
+
+```
+
+## Load and prepare data
+```{r load PF incidence for aoi version 2020, error = FALSE, message = FALSE, warning = FALSE}
+
+# reads the DGGS hexagons from database
+aoi_shape <- read_from_db("AOI_hex6")
+
+# getRatser needs a "SpatialPolygons" object as input, thus we convert the aoi here
+aoi_spatial <- as(aoi_shape, "Spatial")
+
+# this function downloads Plasmodium falciparum incidence from the MalariaAtlasProject site. We just need to specify the year.
+pf <- function(year){
+  getRaster( surface = "Plasmodium  falciparum  Incidence.", shp = aoi_spatial, year = year)
+}
+
+# download for 2000-2017
+pf_00 <- pf(2000)
+pf_01 <- pf(2001)
+pf_02 <- pf(2002)
+pf_03 <- pf(2003)
+pf_04 <- pf(2004)
+pf_05 <- pf(2005)
+pf_06 <- pf(2006)
+pf_07 <- pf(2007)
+pf_08 <- pf(2008)
+pf_09 <- pf(2009)
+pf_10 <- pf(2010)
+pf_11 <- pf(2011)
+pf_12 <- pf(2012)
+pf_13 <- pf(2013)
+pf_14 <- pf(2014)
+pf_15 <- pf(2015)
+pf_16 <- pf(2016)
+pf_17 <- pf(2017)
+
+# for some reason, it is only possible to download the data between 2000 and 2017 via the getRaster function. 
+# therefore, I downloaded 2018-2020 manually and it will now be read in, clipped and masked to our AOI and added to the malaria_cube.
+pf_18 = raster(here("data","202206_Global_Pf_Incidence_Rate_2018.tif")) %>% 
+  crop(aoi_shape) %>% 
+  mask(pf_00)
+pf_19 = raster(here("data","202206_Global_Pf_Incidence_Rate_2019.tif")) %>% 
+  crop(aoi_shape) %>% 
+  mask(pf_00)
+pf_20 = raster(here("data","202206_Global_Pf_Incidence_Rate_2020.tif")) %>% 
+  crop(aoi_shape) %>% 
+  mask(pf_00)
+  
+# puts all rasters in one vector 
+x <- c(pf_00, pf_01, pf_02, pf_03, pf_04, pf_05, pf_06, pf_07, pf_08, pf_09, pf_10, pf_11, pf_12, pf_13, pf_14, pf_15, pf_16, pf_17, pf_18, pf_19, pf_20)
+
+# makes a 3-dimensional raster brick from all the malaria rasters from 2000 to 2020.
+malaria_cube <- brick(x)
+
+# convers the raster brick to points. Each point has the malaria values from 2000 to 2020 as variables. Then the points are transformed to sf objects for easier handling.
+pf_00_20_points <- rasterToPoints(malaria_cube, spatial = TRUE) %>% 
+  st_as_sf()
+
+# Removes variables that we do not need anymore.
+rm(aoi_spatial)
+
+# writes the raster brick/cube to hard drive
+# terra::writeRaster(malaria_cube,here("data/malaria_cube.tif"))
+
+# writes the points dataset to hard drive
+# sf::st_write(pf_00_20_points,here("data/pf_00_20_points.gpkg"))
+
+# reads in the ready data 
+# pf_00_20_points  <- st_read(here("data/pf_00_20_points.gpkg"))                        
+
+```
+
+
+## Prepare and inspect data
+
+```{r data analysis with dplyr, message = FALSE, error = FALSE}
+
+# adding an ID column to the points
+pf_00_20_points <- pf_00_20_points %>% mutate(id = row_number())
+
+# transforming the data into long format
+# we want one Year column and a value column for our analysis.
+# the gather function from the dplyr package is used to transform the data from wide to long format.
+# (Note: consider using pivot_longer instead of gather, as it is the new function with the same functionality.)
+pf_long <- pf_00_20_points %>% 
+  gather(Year, MalariaIncidence, Plasmodium..falciparum..Incidence..2000:X202206_Global_Pf_Incidence_Rate_2020) 
+
+# cleaning up the Year column
+# the Year column currently has long strings like "Plasmodium..falciparum..Incidence..2000".
+# we only need the last four characters, which represent the year. 
+pf_long$Year <- str_sub(pf_long$Year,-4,-1)      
+
+# converting the Year column into a proper date format
+# we add Jan 1st to each row to create a proper date.
+pf_long$Year <- lubridate::as_date(paste0(pf_long$Year, "-01-01"))
+
+# converting the long format data table to a time series tibble by id
+# every geographical point is represented in 21 rows between 2000 and 2020, but they share the same id.
+pf_tsbl <- as_tsibble(pf_long, key = id, index = Year)
+
+# calculating the average Malaria Incidence across all locations per year
+avg <- pf_long %>%
+  group_by(Year) %>% 
+  summarise(avg_value = mean(MalariaIncidence, na.rm = TRUE))
+
+# creating a time series plot per location as a line
+ggplot() + 
+  geom_line(data =  pf_long, aes(x = Year, y = MalariaIncidence, group =id), color = "darkseagreen", alpha = 0.1) +
+  geom_line(data = avg, aes(x = Year, y = avg_value), color = "salmon", linewidth = 2) +
+  labs(x = "Year", y = "Malaria Incidence", title = "Malaria Incidence Over Time") +
+  theme_minimal(base_size = 14) 
+  
+```
+
+## Filter relevant timespan
+```{r since 2013, message = FALSE, error = FALSE, eval= FALSE}
+
+# the overall malaria incidence has decreased drastically between 2000 and 2020. 
+# however, the figure above reveals that there has been a shift in the trend: Since around 2013, numbers are rising again. 
+# therefore, we remove everything before 2013 and just focus on the more recent years to calculate a trend.
+pf_tsbl_recent <- pf_tsbl %>% 
+  dplyr::filter(Year > "2012-01-01")
+
+avg_recent <- avg %>% 
+  dplyr::filter(Year > "2012-01-01") 
+
+# this function calculates the percantage by which the malaria incidence value has changed from 2013 to 2020.
+perc_avg_13 <- ((avg_recent$avg_value[8] - avg_recent$avg_value[1]) / avg_recent$avg_value[1]) * 100
+
+# plot the data between 2013 and 2020
+ggplot()+ 
+  geom_line(data =  pf_tsbl_recent, aes(x = Year, y = MalariaIncidence, group =id), color = "darkseagreen", alpha = 0.1) +
+  geom_line(data = avg_recent, aes(x= Year, y = avg_value), color = "salmon", linewidth = 2) +
+  labs(x = "Year", y = "Malaria Incidence", title = "Malaria Incidence change since 2013") +
+  theme_minimal(base_size = 14) 
+
+# calculate the percentage of change in malaria incidence between 2013 and 2020 in every location.
+# filter the values for 2013 and 2020
+value_2000 <- pf_tsbl %>% 
+  dplyr::filter(Year == "2000-01-01") %>% 
+  dplyr::pull(MalariaIncidence)
+
+value_2013 <- pf_tsbl %>% 
+  dplyr::filter(Year == "2013-01-01") %>% 
+  dplyr::pull(MalariaIncidence)
+
+value_2020 <- pf_tsbl %>% 
+  dplyr::filter(Year == "2020-01-01") %>% 
+  dplyr::pull(MalariaIncidence)
+
+# calculate the percentage.
+perc_change_13 <- ((value_2020 - value_2013) / value_2013) * 100
+perc_change_00 <- ((value_2020 - value_2000) / value_2000) * 100
+
+# write the percentage change in malaria incidence into a new column that we add to the spatial dataset pf_00_20_points
+pf_00_20_points$perc_change_13 <- perc_change_13
+pf_00_20_points$perc_change_00 <- perc_change_00
+
+```
+
+## Hexagonify
+```{r hexa, message = FALSE, error = FALSE, eval= FALSE}
+
+# the data that goes into the hexagonify_points function is only allowed to have one column with values (in addition to the geometry column).
+# thus, we filter the column with the malaria incidence values first.
+pf_recent_points <- pf_00_20_points[24]
+
+
+hexa_points <- function(points, polygons, fun){
+  
+  # Checks which points intersect with which hexagon (polygons)
+  poly_point_intersect <- st_intersects(polygons, points)
+  
+  # A function that is applied to every point per polygon, it returns the mean of all point values in the polygons 
+  hexagon_value <- sapply(poly_point_intersect, function(ids) {
+    pts <- points [ids, ]
+    return(fun(pts[[1]])) # Accesses the value in the first column
+  })
+  
+  # Fills in the average walking time per hexagon cell 
+  return(hexagon_value)
+}
+
+aoi_shape$pf_hexa = hexa_points(pf_recent_points, aoi_shape, mean)
+
+aoi_shape$pf_hexa[aoi_shape$pf_hexa == 0] <- NA
+
+# writes the results to the database
+# write_to_db(aoi_shape, "Indicators")
+
+```
+
+## Visualize the results in a map
+```{r where, message = FALSE, error = FALSE, eval= FALSE}
+
+# sets the tmap mode to an interactive map
+tmap_mode("view")
+
+# defines the color palette
+pal = met.brewer("Gauguin", type = "continuous", direction = -1)
+
+# creates the map 
+# map suddenly given an error - why?
+tm_shape(aoi_shape) +
+  tm_polygons(col = "pf_hexa", palette = pal, popup.vars = c("Change 13-20: "="pf_hexa", id = "h3_index")) +
+  tm_layout(title = "Change in malaria incidence between 2013 and 2020") + 
+  tm_fill(col = '#BFE1F4') + 
+  tm_borders(lwd = 1, col = "black")  
+
+```
+
+
