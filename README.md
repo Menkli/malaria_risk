@@ -1,0 +1,2 @@
+[Armed conflicts Locations and Events](https://menkli.github.io/Malaria_Mapping/armed_conflicts.html)
+[Long-term trends in malaria prevalence](https://menkli.github.io/Malaria_Mapping/malaria_prevalence.html)
