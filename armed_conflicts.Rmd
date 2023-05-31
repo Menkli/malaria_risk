@@ -1,13 +1,12 @@
 ---
-title: "Armed conflicts"
+title: "Armed conflicts locations"
 author: "Linda Petutschnig"
 date: "25 5 2023"
 output:
-  prettydoc::html_pretty:
-    theme: leonids
-    highlight: github
+  html_document:
+    theme: paper
+    highlight: default
 ---
-# Armed conflicts locations and population distribution  
 
 This script performs the following tasks:
 
