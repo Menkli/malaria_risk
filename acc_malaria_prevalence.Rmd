@@ -1,0 +1,91 @@
+---
+title: "Data access: Long-term trends in malaria prevalence"
+author: "Linda Petutschnig"
+date: "13 06 2023"
+output: 
+  html_document:
+    theme: paper
+    highlight: default
+---
+
+This script performs the following tasks:
+
+- Accesses the Malaria Atlas Project database and downloads the "Plasmodium falciparum incidence" data for all available years, cropping it to the Area of Interest (AOI).
+- Manually adds additional years that were not available via direct download.
+- Combines the individual years into a raster brick and saves the result to hard drive.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load libraries
+
+```{r malariaAtlas, message = FALSE, warning = FALSE}
+
+library(malariaAtlas) # download malaria data
+library(sf) # working with spatial vector data (simple features)
+library(raster) # working with raster data
+library(here) # getting rid of relative paths
+
+source(here("hexagonify.R")) # a self-written function to summarize raster cells or points into hexagonal polygons
+
+```
+
+## Load and prepare data
+```{r load PF incidence for aoi version 2020, error = FALSE, message = FALSE, warning = FALSE}
+
+# Reads the DGGS hexagons from database
+aoi_shape <- st_read(here("data/geopackages","AOI_hex6.gpkg"))
+
+# getRatser needs a "SpatialPolygons" object as input, thus we convert the aoi here
+aoi_spatial <- as(aoi_shape, "Spatial")
+
+# This function downloads Plasmodium falciparum incidence from the MalariaAtlasProject site. We just need to specify the year.
+pf <- function(year){
+  getRaster(surface = "Plasmodium  falciparum  Incidence.", shp = aoi_spatial, year = year)
+}
+
+# Downloads for 2000-2017
+pf_00 <- pf(2000)
+pf_01 <- pf(2001)
+pf_02 <- pf(2002)
+pf_03 <- pf(2003)
+pf_04 <- pf(2004)
+pf_05 <- pf(2005)
+pf_06 <- pf(2006)
+pf_07 <- pf(2007)
+pf_08 <- pf(2008)
+pf_09 <- pf(2009)
+pf_10 <- pf(2010)
+pf_11 <- pf(2011)
+pf_12 <- pf(2012)
+pf_13 <- pf(2013)
+pf_14 <- pf(2014)
+pf_15 <- pf(2015)
+pf_16 <- pf(2016)
+pf_17 <- pf(2017)
+
+# For some reason, it is only possible to download the data between 2000 and 2017 via the getRaster function. 
+# Therefore, I downloaded 2018-2020 manually and it will now be read in, clipped and masked to our AOI and added to the malaria_cube.
+pf_18 = raster(here("data/downloads","202206_Global_Pf_Incidence_Rate_2018.tif")) %>% 
+  crop(aoi_shape) %>% 
+  mask(pf_00)
+pf_19 = raster(here("data/downloads","202206_Global_Pf_Incidence_Rate_2019.tif")) %>% 
+  crop(aoi_shape) %>% 
+  mask(pf_00)
+pf_20 = raster(here("data/downloads","202206_Global_Pf_Incidence_Rate_2020.tif")) %>% 
+  crop(aoi_shape) %>% 
+  mask(pf_00)
+  
+# Puts all rasters in one vector 
+x <- c(pf_00, pf_01, pf_02, pf_03, pf_04, pf_05, pf_06, pf_07, pf_08, pf_09, pf_10, pf_11, pf_12, pf_13, pf_14, pf_15, pf_16, pf_17, pf_18, pf_19, pf_20)
+
+# Makes a 3-dimensional raster brick from all the malaria rasters from 2000 to 2020.
+malaria_cube <- brick(x)
+
+# Writes the raster brick to hard drive
+raster::writeRaster(malaria_cube, here("data/rasters","malaria_cube.tif"))
+
+```
+
+
