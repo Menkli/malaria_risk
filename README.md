@@ -1,6 +1,16 @@
 # African Great lakes region: Malaria Risk Mapping
 
-The project is focused on analyzing and visualizing various datasets to study different aspects of a specific topic. This repository contains scripts and workflows for performing reproducible analysis.
+
+
+## Context
+
+In the field of humanitarian work, coordination initiatives like INFORM underscore the significance of comparable and standardized spatial risk assessments. These assessments are crucial for enabling timely and targeted responses to crises. Humanitarian aid organizations, operating at local and regional levels, focus on assisting the most vulnerable individuals. Hence, it is essential that risk assessments are transferable across different locations, time frames, and scopes. Achieving this level of transferability requires leveraging open data, adopting community standards, and establishing transparent, automated, and open workflows.
+
+This repository presents a case study showcasing an approach to a reliable and transferable risk assessment process. The collaboration involved stakeholders from MSF and Epicentre, organizations actively involved in malaria control in Africa. Together, we co-developed a conceptual composite-indicator framework for malaria risk assessment. The aim is to highlight the strengths and limitations of this approach, along with reporting on the current maturity of its transferability.
+
+Community standards play a vital role in this endeavor, as they are actively developed and foster progress. Open development communities, such as the R geospatial community, have been instrumental in this regard. Additionally, the R platform facilitates comprehensive analysis, including data access and download in many cases.
+
+By addressing these aspects, we contribute to the ongoing efforts aimed at improving risk assessments for effective humanitarian interventions.
 
 ## Features
 
@@ -61,3 +71,12 @@ To run the scripts and reproduce the analysis, follow this order:
 8. `ana_malaria_prevalence.Rmd`
 9. `ana_access_to_healthcare.Rmd`
 10. `ana_seasonal_precipitation.Rmd`
+
+## Important tasks to do in the beginning
+
+Some data must be downloaded manually. These must be manually saved into the "data/downloads" folder.
+
+- RWA admin boundaries from the COD Website  
+Links:  
+- Malaria incidence 2018, 2019 and 2020  
+Links:  
