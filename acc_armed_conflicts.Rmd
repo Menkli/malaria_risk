@@ -1,0 +1,75 @@
+---
+title: "Armed conflicts locations"
+author: "Linda Petutschnig"
+date: "25 5 2023"
+output:
+  html_document:
+    theme: paper
+    highlight: default
+---
+
+This script performs the following tasks:
+
+- Accesses the ACLED database and retrieves entries within a user-defined space and time frame.
+- Writes the result to hard drive.
+ 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load, message = FALSE, warning = FALSE}
+
+# Loads necessary packages
+library(acled.api) # to access ACLED data
+library(sf) # to manipulate vector features
+library(here) # to access data via relative paths
+
+# Contains the credentials necessary to access the ACLED data
+source(here("acled_credentials.R")) 
+
+# Add aceld.api
+# https://www.rdocumentation.org/packages/acled.api/versions/1.1.5
+# Citing ACLED: https://developer.acleddata.com/dashboard/terms-of-use/
+ 
+```
+
+
+```{r acled for aoi, message = FALSE, warning = FALSE}
+
+# Reads the hexagon shapes 
+aoi_shape <- st_read(here("data/geopackages", "AOI_hex6.gpkg"))
+
+# this function downloads ACLED data
+get_acled <- function(country, from, to){
+   v <- acled.api( # stores an ACLED sample in object v
+     # EMAIL and ACCESS are sensitive information. 
+     # Hence, they are stored in a separate file (acled_credentials.R), 
+     # which is loaded as an additional source in the beginning of the script. 
+      email.address = Sys.getenv("EMAIL_ADDRESS"),
+      access.key = Sys.getenv("ACCESS_KEY"),
+      country = country,
+      start.date = from, 
+      end.date = to,
+      add.variables = c("longitude","latitude")
+      )
+ 
+      # Converts into a spatial object (sf)
+      v <- st_as_sf(v, coords=c("longitude","latitude"))
+      
+      # Defines the event dates as variables of type date
+      v$event_date <- as.Date(v$event_date)
+      
+      # Sets coordinate reference system
+      st_crs(v) = 4326
+
+   return(v)
+}
+
+# Calls the above defined function and converts the results into an sf object
+ acled_17_20_aoi <- get_acled(c("Democratic Republic of Congo","Rwanda","Uganda","Burundi"), "2017-01-01", "2020-12-31") %>% 
+  st_as_sf() 
+
+#  Writes the downloaded to hard drive
+st_write(acled_17_20_aoi, here("data/geopackages","acled_17_20_aoi.gpkg"), append = TRUE)
+
+```
