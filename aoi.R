@@ -208,7 +208,7 @@ st_write(aoi, here("data/geopackages","AOI.gpkg"), append = TRUE)
 #----------------------------------------------
 # Uncomment in case of wanting to re-run the AOI pre-processing
 # without downloading the boundary data again.
-# st_read(here("data/geopackages","AOI.gpkg"))
+aoi <- st_read(here("data/geopackages","AOI.gpkg"))
 
 # Makes one polygon of the AOI's outer boundaries
 # Dissolves the inner boundaries of the AOI polygon
@@ -234,4 +234,4 @@ aoi_lakes <- st_as_sf(world_lakes) %>%
 # Erases the lakes from the hexagon layer
 index_sf_lakes <- rmapshaper::ms_erase(index_sf, aoi_lakes) 
 
-st_write(index_sf_lakes, here("data/geopackages", "AOI_hex6.gpkg"))
+st_write(index_sf_lakes, here("data/geopackages", "AOI_hex6.gpkg"), append = TRUE)
