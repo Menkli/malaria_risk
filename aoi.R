@@ -206,22 +206,19 @@ aoi <- rbind(aoi_clean, rwa_clean)
 st_write(aoi, here("data/geopackages","AOI.gpkg"), append = TRUE)
 
 #----------------------------------------------
-# Makes one polygon of the AOI's outer boundaries
+# Uncomment in case of wanting to re-run the AOI pre-processing
+# without downloading the boundary data again.
+# st_read(here("data/geopackages","AOI.gpkg"))
 
+# Makes one polygon of the AOI's outer boundaries
 # Dissolves the inner boundaries of the AOI polygon
 aoi_dissolve = st_union(aoi) %>% 
   st_as_sf()
 
-# Makes a regular grid inside the dissolved AOI polygon
-point_grid <- aoi_dissolve %>% 
-  st_make_grid(cellsize = 0.05, what = "centers") %>% # grid of points
-  st_intersection(aoi_dissolve) %>% 
-  st_as_sf()
-
 #-----------------------------------------------
 # Created H3 DGGS hexagons over the entier AOI and removes the big lakes
-# Makes an h3 index over point grid
-h3_index <- h3::geo_to_h3(point_grid, res = 6)
+# Makes an h3 index within the AOI
+h3_index <- h3::polyfill(aoi_dissolve, res = 6)
 
 # Converts the h3 language into sf polygons
 index_sf <- h3::h3_to_geo_boundary_sf(h3_index)
@@ -235,5 +232,6 @@ aoi_lakes <- st_as_sf(world_lakes) %>%
   st_crop(aoi)
 
 # Erases the lakes from the hexagon layer
-index_sf_lakes <- rmapshaper::ms_erase(index_sf, aoi_lakes)
+index_sf_lakes <- rmapshaper::ms_erase(index_sf, aoi_lakes) 
+
 st_write(index_sf_lakes, here("data/geopackages", "AOI_hex6.gpkg"))
