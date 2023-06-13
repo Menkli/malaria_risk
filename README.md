@@ -8,9 +8,6 @@ In the field of humanitarian work, coordination initiatives like INFORM undersco
 
 This repository presents a case study showcasing an approach to a reliable and transferable risk assessment process. The collaboration involved stakeholders from MSF and Epicentre, organizations actively involved in malaria control in Africa. Together, we co-developed a conceptual composite-indicator framework for malaria risk assessment. The aim is to highlight the strengths and limitations of this approach, along with reporting on the current maturity of its transferability.
 
-Community standards play a vital role in this endeavor, as they are actively developed and foster progress. Open development communities, such as the R geospatial community, have been instrumental in this regard. Additionally, the R platform facilitates comprehensive analysis, including data access and download in many cases.
-
-By addressing these aspects, we contribute to the ongoing efforts aimed at improving risk assessments for effective humanitarian interventions.
 
 ## Features
 
