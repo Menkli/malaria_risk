@@ -6,7 +6,7 @@ library(tidyverse) # a suite of packages for data wrangling, transformation, plo
 library(ows4R) # interface for OGC webservices
 library(here) # to use relative paths
 library(h3) # to create the DGGS hexagons
-
+library(rnaturalearth) 
 #-----------------
 
 # BURUNDI
@@ -201,40 +201,39 @@ rwa_clean <- rename(rwa_clean,admin1Pcode = ADM1_PCODE)
 rwa_clean <- rename(rwa_clean,admin0Name = ADM0_EN)
 rwa_clean <- rename(rwa_clean,admin0Pcode = ADM0_PCODE)
 
-# Bind the new, clean table and writ to db
+# Binds the new, clean table and writes it to hard drive
 aoi <- rbind(aoi_clean, rwa_clean)
-
 st_write(aoi, here("data/geopackages","AOI.gpkg"), append = TRUE)
 
 #----------------------------------------------
-# Make one layer that has the national broders of the AOI, except for DRC, where we want only the outlines of Ituri and the Kivus combined. 
-# To do: Seems to not be doing what it is intended to do yet.
+# Makes one polygon of the AOI's outer boundaries
 
-# aoi_adm2 = st_read(here("data/geopackages","AOI.gpkg"))
-# 
-# x = aoi_adm2 %>% 
-#   group_by(admin0Name) %>% 
-#   st_cast() 
-# plot(x)
-# 
-# xxx = st_union(aoi_adm2, by_feature = TRUE)
-
-# AOI hex6 geometry
-# To do: Check where the hexagons are created and standardize this here
-hex <- read_from_db("AOI_pf_hex6")
-hex <- subset(hex, select = -c(pf))
-write_to_db(hex, "AOI_hex6_geometry")
-
-plas_points <- rasterToPoints(kivu_plasmodium_disagg, spatial = TRUE) %>% 
+# Dissolves the inner boundaries of the AOI polygon
+aoi_dissolve = st_union(aoi) %>% 
   st_as_sf()
 
-# Load point that cover the whole AOI
-# Dissolve inner boundaries in AOI
-# Place a gird of points inside the AOI
+# Makes a regular grid inside the dissolved AOI polygon
+point_grid <- aoi_dissolve %>% 
+  st_make_grid(cellsize = 0.05, what = "centers") %>% # grid of points
+  st_intersection(aoi_dissolve) %>% 
+  st_as_sf()
 
-# Makes an h3 index raster over the locations of the points
-h3_index <- geo_to_h3(aoi_points, res = 5)
-# Converts the h3 language into sf Polygons
-index_sf <- h3_to_geo_boundary_sf(h3_index)
-# Checks which points intersect with which polygon
-pp_poly <- st_intersects(index_sf, plas_points) 
+#-----------------------------------------------
+# Created H3 DGGS hexagons over the entier AOI and removes the big lakes
+# Makes an h3 index over point grid
+h3_index <- h3::geo_to_h3(point_grid, res = 6)
+
+# Converts the h3 language into sf polygons
+index_sf <- h3::h3_to_geo_boundary_sf(h3_index)
+
+# Download lakes from Naturalearthdata
+world_lakes <- ne_download(scale = 10, type = 'lakes', category = 'physical')
+
+# Transforms the lakes to an sf object, repairs broken geometries and crops to the AOI boundaries
+aoi_lakes <- st_as_sf(world_lakes) %>% 
+  st_make_valid() %>% 
+  st_crop(aoi)
+
+# Erases the lakes from the hexagon layer
+index_sf_lakes <- rmapshaper::ms_erase(index_sf, aoi_lakes)
+st_write(index_sf_lakes, here("data/geopackages", "AOI_hex6.gpkg"))
