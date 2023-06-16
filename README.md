@@ -1,3 +1,5 @@
+<h1><img src="http://i.stack.imgur.com/7f1Lm.png">American Title</h1>
+
 # African Great lakes region: Malaria Risk Mapping
 
 <p align="center">
