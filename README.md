@@ -1,7 +1,5 @@
 # African Great lakes region: Malaria Risk Mapping
 
-
-
 ## Context
 
 In the field of humanitarian work, coordination initiatives like INFORM underscore the significance of comparable and standardized spatial risk assessments. These assessments are crucial for enabling timely and targeted responses to crises. Humanitarian aid organizations, operating at local and regional levels, focus on assisting the most vulnerable individuals. Hence, it is essential that risk assessments are transferable across different locations, time frames, and scopes. Achieving this level of transferability requires leveraging open data, adopting community standards, and establishing transparent, automated, and open workflows.
@@ -20,6 +18,7 @@ This repository presents a case study showcasing an approach to a reliable and t
 Before running the scripts, make sure to follow these requirements:
 
 - Place the file `acled_credentials.R` in the root folder.
+- Place the file `copernicus_credentials.R`in the root folder.
 - Store the file `hexagonify.R` in the root folder.
 - Use filenames beginning with "acc_" for accessing data from the web.
 - Use filenames beginning with "ana_" for performing data manipulation and analysis tasks.
@@ -60,14 +59,15 @@ To run the scripts and reproduce the analysis, follow this order:
 
 1. `packages.R`
 2. `aoi.R`
-3. `acc_armed_conflicts.Rmd`
-4. `acc_malaria_prevalence.Rmd`
-5. `acc_access_to_healthcare.Rmd`
-6. `acc_seasonal_precipitation.Rmd`
-7. `ana_armed_conflicts.Rmd`
-8. `ana_malaria_prevalence.Rmd`
-9. `ana_access_to_healthcare.Rmd`
-10. `ana_seasonal_precipitation.Rmd`
+3. `population.Rmd`
+4. `acc_armed_conflicts.Rmd`
+5. `acc_malaria_prevalence.Rmd`
+6. `acc_access_to_healthcare.Rmd`
+7. `acc_seasonal_precipitation.Rmd`
+8. `ana_armed_conflicts.Rmd`
+9. `ana_malaria_prevalence.Rmd`
+10. `ana_access_to_healthcare.Rmd`
+11. `ana_seasonal_precipitation.Rmd`
 
 ## Important tasks to do in the beginning
 
