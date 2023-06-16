@@ -1,7 +1,21 @@
+# Creates the folder structure that is used for the assessment data
+file.path(here(),"data") %>% 
+  dir.create()
+
+file.path(here("data"),"downloads") %>% 
+  dir.create()
+
+file.path(here("data"),"geopackages") %>% 
+  dir.create()
+
+file.path(here("data"),"rasters") %>% 
+  dir.create()
+
 # List of required packages
 required_packages <- c(
   "acled.api", 
   "fable",
+  "ecmwfr",
   "h3",
   "here",
   "malariaAtlas",
@@ -17,8 +31,7 @@ required_packages <- c(
   "tmap",
   "tsibble",
   "utils",
-  "wpgpDownloadR",
-  "ecmwfr"
+  "wpgpDownloadR"
 )
 
 # Check and install missing packages
@@ -28,9 +41,9 @@ for (package in required_packages) {
   }
 }
 
-
 # # acled.api - to access ACLED data
 # # fable - time series analysis
+# # ecmwfr - to access ECMWF seasonal precipitation forecast data via the Copernicus Climate Data Store or ECMWF
 # # h3 - to create the DGGS hexagons
 # # here - to use relative paths
 # # malariaAtlas - download malaria data
@@ -53,3 +66,5 @@ for (package in required_packages) {
 # # tsibble - time series analysis
 # # utils - general purpose programming tasks
 # # wpgpDownloadR - to access the Worldpop database
+
+
