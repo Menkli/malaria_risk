@@ -1,0 +1,303 @@
+---
+title: "Historical precipitation patterns and seasonal forecasts"
+author: "Linda Petutschnig"
+date: "31 5 2023"
+output: html_document
+---
+
+This script performs the following tasks:
+
+ - Loads pre-precessed CHIRPS precipitation data and manipultaes in several ways for data analysis
+ - Calculates averages
+ - Makes plots to explore the data
+ - Clusters the AOI into different rainfall regimes
+ - Plots the clusters
+ - Calcualtes averages per cluster
+
+To do:
+  - Load seasonal precipitation forecast data
+  - Decide on and calculate the final indicator
+  - Write into hexagons
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load libraries
+
+```{r load libraryies}
+
+library(httr)
+library(utils)
+library(raster)
+library(terra)
+library(sf)
+library(R.utils)
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(lubridate)
+library(tsibble)
+library(ggplot2)
+library(here)
+library(purrr)
+library(timetk)
+
+source(here("hexagonify.R"))
+
+```
+
+
+## Preparing the data for time series analysis
+
+```{r prepare data}
+
+# Loads the previously prepared brick
+prec_aoi_brick <- terra::rast(here::here("data/rasters", "perc_aoi_brick_90_19.tif"))
+
+# Convert raster cells to points
+prec_90_19_points <- rasterToPoints(raster::brick(prec_aoi_brick), spatial = TRUE) %>% 
+  st_as_sf() %>% 
+  mutate(id = row_number())
+
+# Convert to long
+# Transforming the data into long format
+# We want one Year column and a value column for our analysis.
+# The pivot_long function from the tidyr package is used to transform the data from wide to long format.
+prec_long <- prec_90_19_points %>% 
+  pivot_longer(
+    cols = starts_with("chirps.v2.0"),
+    names_to = "Month",
+    values_to = "Precipitation"
+  )
+
+# Cleans up the Year column
+# The Year column names are currently long strings like "Plasmodium..falciparum..Incidence..2000".
+# Only need the last four characters indicating the year are needed. 
+prec_long$Month <- str_sub(prec_long$Month,-7,-1)      
+prec_long$Month <- gsub("\\.(?=\\d{2}$)", "-", prec_long$Month, perl=TRUE)
+
+# Converts the Year column into date format and adds 1st 
+prec_long$Month <- as_date(paste0(prec_long$Month, "-01"))
+
+# Converting the long format data table to a time series tibble by id
+# Every geographical point is now represented as 360 individual rows (1990 to 2019, monthly) that share the same id.
+prec_tsbl <- as_tsibble(prec_long, key = id, index = Month)
+
+# Calculates the monthly precipitation averaging over all locations 
+avg <- prec_long %>%
+  group_by(Month) %>% 
+  summarise(avg_value = mean(Precipitation, na.rm = TRUE))
+
+# Creates a time series plot with each location represented by one line. 
+ggplot() + 
+  geom_line(data =  prec_long, aes(x = Month, y = Precipitation, group =id), color = "darkseagreen", alpha = 0.1) +
+  geom_line(data = avg, aes(x = Month, y = avg_value), color = "salmon", linewidth = 2) +
+  labs(x = "Month", y = "Precipitation", title = "Precipitation monthly 1990-2019") +
+  theme_minimal(base_size = 14) 
+
+```
+
+## Average monthly rainfall per year  
+The next chunk prepares and plots a graph showing the average yearly rainfall pattern of the years 1990-2019 for all locations combined.
+```{r average rainfall throughout the year}
+
+# We want one column that contains only the month 
+# Extracts from the current column "Month" (that actually contains a full date) the month and writes it into a new column "month_name" as a number
+prec_long$month_name <- month(prec_long$Month, label = FALSE)#, abbr = FALSE)
+
+# Calculates the 30-year average precipitation per month for all locations at once
+avg_monthly <- prec_long %>%
+  group_by(month_name) %>% 
+  summarise(avg_value = mean(Precipitation, na.rm = TRUE))
+
+# Creates a time series plot of the 30-year average precipitation per month for all locations at once
+ggplot() + 
+  geom_step(data =  avg_monthly, aes(x = month_name, y = avg_value), color = "salmon", linewidth = 1) +
+  labs(x = "Month", y = "Precipitation", title = "Precipitation monthly 1990-2019 whole AOI") +
+  theme_minimal(base_size = 14) 
+
+```
+## Zoom in on one randomly selected location 
+The next chunk prepares and plots precipitation data for one particular location/grid cell.
+The green line displays the 30-year monthly-average while the red points represent the individual years.
+
+```{r single areas}
+
+id <- prec_long %>%
+  group_by(id)
+
+random_cell = id %>% 
+  subset(id == 10000) 
+
+monthly_summary = random_cell %>% 
+  group_by(month_name) %>% 
+  summarise(avg_value = mean(Precipitation, na.rm = TRUE))
+
+ggplot() + 
+  geom_point(data =  random_cell, aes(x = month_name, y = Precipitation), color = "salmon") +
+  geom_line(data = monthly_summary, aes(x = month_name, y = avg_value), color = "darkseagreen", linewidth = 1) +
+  labs(x = "Month", y = "Precipitation", title = "Precipitation monthly 1990-2019") +
+  theme_minimal(base_size = 14) 
+
+```
+
+## Cluster raster cells based on monthly average rainfall patterns  
+```{r clusters}
+
+# Selects the second to last column from prec_long. 
+# This means the geometry column is dropped. 
+prec_long_vect <- prec_long[2:5]
+prec_long_vect_df <- as.data.frame(prec_long_vect)
+
+# Applies the tk_tsfeatures function which computes a matrix of time series features that describes the various time series
+tsfeature_tbl <- prec_long_vect_df %>% 
+  group_by(id) %>% 
+  tk_tsfeatures(
+    .date_var = Month,
+    .value = Precipitation,
+    .period = 12,
+    .features = c("frequency", "stl_features", "entropy", "acf_features"),
+    .scale = TRUE,
+    .prefix="ts_") %>% 
+  ungroup()
+
+head(tsfeature_tbl)
+
+# Clusters the data using kmeans based on the time series features extraxted above.
+cluster_tbl <- tibble(
+    cluster = tsfeature_tbl %>% 
+        select(-id) %>%
+        as.matrix() %>%
+        kmeans(centers = 3, nstart = 100) %>%
+        pluck("cluster")
+) %>%
+    bind_cols(
+        tsfeature_tbl
+    )
+
+head(cluster_tbl)
+
+```
+## Plotting the clusters
+
+The next chunk plots which raster cells fall into which cluster.  
+In addition, it generates a plot that shows the 30-year average of the yearly rainfall patterns in all three clusters.  
+
+```{r plot clusters}
+
+# Extracts the cluster number and id for each location and turns it into a dataframe.
+clus <- cluster_tbl[1:2] %>% 
+  data.frame()
+
+# Binds the cluster number and id to the points dataset holding the original precipitation values.
+prec_90_19_points$cluster <- clus
+
+# Create a raster object into which the cluster values can be written.
+r <- raster(prec_aoi_brick)
+
+# Converts the points dataset from an sf object to a SpatialPointsDataset
+prec_90_19_spdf <- as(prec_90_19_points, "Spatial")
+
+# Makes a new object that has only the cluster number information
+cluster_no <- prec_90_19_points$cluster
+
+# Writes the cluster numbers into the prepared raster and plots the result.
+prec_clust_rast <- rasterize(prec_90_19_spdf, raster(r), field = cluster_no)
+plot(prec_clust_rast)
+
+# To visualize clusters as plots:
+# Merges the cluster numbers to the prec_ling data
+prec_long_clus <- merge(prec_long, clus, by = "id")
+
+# Groups data points that fall into the same cluster and calculates the averages per cluster
+clust_facets <- prec_long_clus %>% 
+  group_by(cluster, month_name) %>% 
+  summarise(avg_value = mean(Precipitation, na.rum = TRUE))
+
+# Makes a plot of the cluster averages
+p <- ggplot() + 
+  geom_line(data = clust_facets, aes(x = month_name, y = avg_value), color = "darkseagreen", linewidth = 1) +
+  labs(x = "Month", y = "Precipitation", title = "Precipitation monthly 1990-2019") +
+  theme_minimal(base_size = 14) 
+
+# Plots the cluster averages as faceets
+p + facet_grid(
+  rows = vars(cluster)
+)
+
+```
+# Rainy season months == months where it rains more than average?
+# If it is supposed to rain more than average in one of the wetter months, then risk is increased?
+# Check with Leo, Lise, etc?
+
+## Identify months with above average rainfall  
+
+The next chunk calculates the 30-year-average yearly rainfall and divides it by 12. This tells us how much precipitation would fall in every month, if precipitation was distributed equally throughout the year. Next, it identifies which months actually lie above and which do lie below the average. This way, we can identify which months constitute the "rainy season" and which constitute the "dry season".  
+
+```{r months where it rains more than average}
+# Groups by cluster
+# Sums up all avg_values per cluster and divides by 12
+avg_prec <- clust_facets %>% 
+  group_by(cluster) %>% 
+  summarize(total_prec_yearly = sum(avg_value, na.rum = TRUE)) %>% 
+  mutate(avg_prec_monthly = total_prec_yearly / 12)
+
+# Drops geometry column
+avg_prec_vect <- st_drop_geometry(avg_prec) 
+
+# Check if avg_value in month_name 1-12 is bigger or smaller than avg_value
+clust_facets_avg <- merge(clust_facets, avg_prec_vect, by = "cluster")
+# If avg_value in month_name[1] is bigger than avg_value, write value 1 into column "weight" 
+# Add new column based on condition
+clust_facets_avg$weight <- ifelse(clust_facets_avg$avg_value > clust_facets_avg$avg_prec_monthly, 1, 0)
+
+# Visualize in plot
+p <- ggplot() + 
+  geom_line(data = clust_facets_avg, aes(x = month_name, y = avg_value), color = "darkseagreen", linewidth = 1) +
+  geom_line(data = clust_facets_avg, aes(x = month_name, y = avg_prec_monthly), color = "salmon", linewidth = 1) +
+  labs(x = "Month", y = "Precipitation", title = "Precipitation monthly 1990-2019") +
+  theme_minimal(base_size = 14) 
+
+# Show plots as facets
+p + facet_grid(
+  rows = vars(cluster)
+)
+
+```
+
+
+```{r precipitation forecasts}
+# Load the forecast file(s)
+# For more information on the data see here: https://codes.ecmwf.int/grib/param-db/?id=173228
+prec_fore <- terra::rast(here::here("data","adaptor.mars.external-1683882560.0880013-4250-10-28368ed9-9c4a-49bc-b092-80e8f6821ab9.grib"))
+
+plot(prec_fore)
+
+# Disaggregate to the resolution of the CHIRPS data
+prec_fore_resample <- terra::resample(prec_fore, rast(r)) %>% 
+  mask(rast(r))
+plot(prec_fore_resample)
+# Classify values into average, more and less than average (?)
+
+# If, in any of the six coming months, it rains more than average in one of the rainy months (If prec_coming_june == above average && weight == 1, then assign value 1 to new column. If prec_coming_june == below average && weight == 1, then -1)
+
+
+# Rainy season (> average_hist + 1 sd)
+# Above average_forecast +4
+# Average_forecast +3
+# Below_average forecast +2
+
+# Shoulder season (average_hist +-1 sd)
+# Above average_forecast +1
+# Average_forecast 0
+# Below_average forecast -1
+
+# Dry season (< average_hist - 1 sd)
+# Above average_forecast -2
+# Average_forecast -3
+# Below_average forecast -4
+
+
+```
