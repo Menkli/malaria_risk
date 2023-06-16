@@ -1,5 +1,5 @@
 <h1>
-  <img src="./GEOHUM_background.PNG" alt="GEOHUM Logo" width="20px">
+  <img src="./GEOHUM_background.PNG" alt="GEOHUM Logo" width="100px">
   Malaria Risk Mapping
 </h1>
 
