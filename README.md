@@ -1,4 +1,8 @@
-<h1><img src="./GEOHUM_background.PNG">Malaria Risk Mapping</h1>
+<h1>
+  <img src="./GEOHUM_background.PNG" alt="GEOHUM Logo" width="20px">
+  Malaria Risk Mapping
+</h1>
+
 
 ## Context
 
