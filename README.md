@@ -1,17 +1,15 @@
 # African Great lakes region: Malaria Risk Mapping
 
+<p align="center">
+  <img src="./GEOHUM_background.PNG" alt="GEOHUM Logo" />
+</p>
+
 ## Context
 
 In the field of humanitarian work, coordination initiatives like INFORM underscore the significance of comparable and standardized spatial risk assessments. These assessments are crucial for enabling timely and targeted responses to crises. Humanitarian aid organizations, operating at local and regional levels, focus on assisting the most vulnerable individuals. Hence, it is essential that risk assessments are transferable across different locations, time frames, and scopes. Achieving this level of transferability requires leveraging open data, adopting community standards, and establishing transparent, automated, and open workflows.
 
-This repository presents a case study showcasing an approach to a reliable and transferable risk assessment process. The collaboration involved stakeholders from MSF and Epicentre, organizations actively involved in malaria control in Africa. Together, we co-developed a conceptual composite-indicator framework for malaria risk assessment. The aim is to highlight the strengths and limitations of this approach, along with reporting on the current maturity of its transferability.
+This repository presents a case study showcasing an approach to a reliable and transferable malaria risk assessment process. The collaboration involved stakeholders from MSF and Epicentre, organizations actively involved in malaria control in Africa. Together, we co-developed a conceptual composite-indicator framework for malaria risk assessment. The aim is to highlight the strengths and limitations of this approach, along with reporting on the current maturity of its transferability.
 
-
-## Features
-
-- Accesses and downloads Common Operational Datasets (administrative boundaries) from the web on all available administrative levels.
-- Provides armed conflicts locations and events information. [View here](https://menkli.github.io/malaria_risk/reports/armed_conflicts.html)
-- Presents long-term trends in malaria prevalence. [View here](https://menkli.github.io/malaria_risk/reports/malaria_prevalence.html)
 
 ## Requirements
 
@@ -73,7 +71,16 @@ To run the scripts and reproduce the analysis, follow this order:
 
 Some data must be downloaded manually. These must be manually saved into the "data/downloads" folder.
 
-- RWA admin boundaries from the COD Website  
-Links:  
+- RWA Common Operational Datasets admin boundaries from the HDX platform    
+  - Link:  [https://data.humdata.org/dataset/cod-ab-rwa](https://data.humdata.org/dataset/cod-ab-rwa)  
+  - Download the .zip folder containing the Shapefiles  
+  - Under `data/downloads`, unzip the data into a new sub-folder. The folder should automatically get the name `rwa_adm_2006_nisr_wgs1984_20181002_shp` 
+
 - Malaria incidence 2018, 2019 and 2020  
 Links:  
+
+## Features
+
+- Accesses and downloads Common Operational Datasets (administrative boundaries) from the web on all available administrative levels.
+- Provides armed conflicts locations and events information. [View here](https://menkli.github.io/malaria_risk/reports/armed_conflicts.html)
+- Presents long-term trends in malaria prevalence. [View here](https://menkli.github.io/malaria_risk/reports/malaria_prevalence.html)
