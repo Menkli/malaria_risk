@@ -10,15 +10,11 @@ output:
 
 This script performs the following tasks:
 
-- Accesses the Malaria Atlas Project database and downloads the "Plasmodium falciparum incidence" data for all available years, cropping it to the Area of Interest (AOI).
-- Manually adds additional years that were not available via direct download.
-- Combines the individual years into a raster brick, which is then converted to points. Each point includes attribute columns with values for the respective years.
 - Pre-processes and manipulates the data to prepare it for analysis.
 - Generates a graph illustrating the development of Pf-incidence from 2000 to 2020 for all locations.
 - Identifies a shift in the general trend around 2013 and conducts an in-depth analysis of the change between 2013 and 2020.
 - Integrates the Pf-incidence values with a hexagonal grid prepared in a separate script.
 - Uses the percentage change in Pf-incidence between 2013 and 2020 as a risk indicator and visualizes it on a map.
-
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -27,7 +23,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Load libraries
 
 ```{r malariaAtlas, message = FALSE, warning = FALSE}
-
 
 library(sf) # working with spatial vector data (simple features)
 library(raster) # working with raster data
@@ -51,7 +46,7 @@ source(here("hexagonify.R")) # a self-written function to summarize raster cells
 ```{r data analysis with dplyr, message = FALSE, error = FALSE}
 
 # Loads the hexagons
-aoi_shape <- st_read(here("data/geopackages","AOI_hex6.gpkg"))
+aoi_shape <- st_read(here("data/geopackages","AOI_hex5.gpkg"))
 
 # Loads the points containing the malaria data
 pf_00_20_points <- st_read(here("data/geopackages","pf_00_20_points.gpkg"))
@@ -88,33 +83,40 @@ ggplot() +
   geom_line(data = avg, aes(x = Year, y = avg_value), color = "salmon", linewidth = 2) +
   labs(x = "Year", y = "Malaria Incidence", title = "Malaria Incidence Over Time") +
   theme_minimal(base_size = 14) 
-  
+
+ggplot(data = pf_long, aes(x = MalariaIncidence, fill = "Malaria Incidence")) +
+  geom_density(alpha = 0.5) +
+  labs(x = "Malaria Incidence", y = "Density", title = "Density Plot of Malaria Incidence") +
+  theme_minimal(base_size = 14)
+
 ```
 
 ## Filter relevant timespan
+
 ```{r since 2013, message = FALSE, error = FALSE, eval= FALSE}
 
-# the overall malaria incidence has decreased drastically between 2000 and 2020. 
-# however, the figure above reveals that there has been a shift in the trend: Since around 2013, numbers are rising again. 
-# therefore, we remove everything before 2013 and just focus on the more recent years to calculate a trend.
+# As can be seen from the figure above, the overall malaria incidence has decreased drastically between 2000 and 2020. 
+# However,it also reveals that there has been a shift in the trend: Since around 2013, numbers are not decreasing anymore. 
+# To better reflect this trend, the years 2000 to 2012 are removed in the next step. 
 pf_tsbl_recent <- pf_tsbl %>% 
   dplyr::filter(Year > "2012-01-01")
 
 avg_recent <- avg %>% 
   dplyr::filter(Year > "2012-01-01") 
 
-# this function calculates the percantage by which the malaria incidence value has changed from 2013 to 2020.
+# This function calculates the percantage by which the malaria incidence value has changed from 2013 to 2020.
 perc_avg_13 <- ((avg_recent$avg_value[8] - avg_recent$avg_value[1]) / avg_recent$avg_value[1]) * 100
 
-# plot the data between 2013 and 2020
-ggplot()+ 
-  geom_line(data =  pf_tsbl_recent, aes(x = Year, y = MalariaIncidence, group =id), color = "darkseagreen", alpha = 0.1) +
-  geom_line(data = avg_recent, aes(x= Year, y = avg_value), color = "salmon", linewidth = 2) +
-  labs(x = "Year", y = "Malaria Incidence", title = "Malaria Incidence change since 2013") +
-  theme_minimal(base_size = 14) 
+# Plots the years 2013 and 2020
+# ggplot()+ 
+#   geom_line(data =  pf_tsbl_recent, aes(x = Year, y = MalariaIncidence, group =id), color = "darkseagreen", alpha = 0.1) +
+#   geom_line(data = avg_recent, aes(x= Year, y = avg_value), color = "salmon", linewidth = 2) +
+#   labs(x = "Year", y = "Malaria Incidence", title = "Malaria Incidence change since 2013") +
+#   theme_minimal(base_size = 14) 
 
-# calculate the percentage of change in malaria incidence between 2013 and 2020 in every location.
-# filter the values for 2013 and 2020
+# Calculates the change rate in malaria incidence between 2013 and 2020 in every individual location.
+# Filters the values for 2013 and 2020.
+# The same is done for a comparison between 2000 and 2020. 
 value_2000 <- pf_tsbl %>% 
   dplyr::filter(Year == "2000-01-01") %>% 
   dplyr::pull(MalariaIncidence)
@@ -127,24 +129,25 @@ value_2020 <- pf_tsbl %>%
   dplyr::filter(Year == "2020-01-01") %>% 
   dplyr::pull(MalariaIncidence)
 
-# calculate the percentage.
-perc_change_13 <- ((value_2020 - value_2013) / value_2013) * 100
-perc_change_00 <- ((value_2020 - value_2000) / value_2000) * 100
+# Calculates the percentage.
+perc_change_13 <- ((value_2020 - value_2013) / value_2013) * 100 # Change between 2013 and 2020
+perc_change_00 <- ((value_2020 - value_2000) / value_2000) * 100 # Change between 2000 and 2020
 
-# write the percentage change in malaria incidence into a new column that we add to the spatial dataset pf_00_20_points
+# Writes the change rate in malaria incidence into a new column that is added to pf_00_20_points
 pf_00_20_points$perc_change_13 <- perc_change_13
 pf_00_20_points$perc_change_00 <- perc_change_00
 
 ```
 
 ## Hexagonify
+
 ```{r hexa, message = FALSE, error = FALSE, eval= FALSE}
 
-# the data that goes into the hexagonify_points function is only allowed to have one column with values (in addition to the geometry column).
-# thus, we filter the column with the malaria incidence values first.
+# The data that goes into the hexagonify_points function is only allowed to have one column with values (in addition to the geometry column).
+# Thus, the column containing the malaria incidence values must be filtered first.
 pf_recent_points <- pf_00_20_points[24]
 
-
+# The change rate in malaria incidence is read into the hexagons
 hexa_points <- function(points, polygons, fun){
   
   # Checks which points intersect with which hexagon (polygons)
@@ -156,30 +159,34 @@ hexa_points <- function(points, polygons, fun){
     return(fun(pts[[1]])) # Accesses the value in the first column
   })
   
-  # Fills in the average walking time per hexagon cell 
+  # Fills in the average per hexagon cell 
   return(hexagon_value)
 }
 
+# As of 11.07.23 the hotspots_classify function gave an error, because in the just loaded dataset, some edges have duplicate
+# vertexes with other edges. This has not been a problem before. 
+# Adding the bit below solves the issue. 
+sf_use_s2(FALSE)
+
 aoi_shape$pf_hexa = hexa_points(pf_recent_points, aoi_shape, mean)
+aoi_shape$pf_hexa[is.infinite(aoi_shape$pf_hexa)] <- NA     
+#aoi_shape$pf_hexa[aoi_shape$pf_hexa == 0] <- NA
 
-aoi_shape$pf_hexa[aoi_shape$pf_hexa == 0] <- NA
-
-# writes the results to the database
-# write_to_db(aoi_shape, "Indicators")
+# Writes the results to hard drive.
+st_write(aoi_shape, here("data/geopackages","AOI_hex5_ind2.gpkg"), append = FALSE)
 
 ```
 
 ## Visualize the results in a map
 ```{r where, message = FALSE, error = FALSE, eval= FALSE}
 
-# sets the tmap mode to an interactive map
+# Sets the tmap mode to an interactive map
 tmap_mode("view")
 
-# defines the color palette
+# Defines the color palette
 pal = met.brewer("Gauguin", type = "continuous", direction = -1)
 
-# creates the map 
-# map suddenly given an error - why?
+# Creates the map 
 tm_shape(aoi_shape) +
   tm_polygons(col = "pf_hexa", palette = pal, popup.vars = c("Change 13-20: "="pf_hexa", id = "h3_index")) +
   tm_layout(title = "Change in malaria incidence between 2013 and 2020") + 
