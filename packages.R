@@ -1,4 +1,7 @@
 # Creates the folder structure that is used for the assessment data
+library(dplyr)
+library(here)
+
 file.path(here(),"data") %>% 
   dir.create()
 
@@ -18,11 +21,13 @@ required_packages <- c(
   "ecmwfr",
   "h3",
   "here",
+  "httr",
   "malariaAtlas",
   "MetBrewer",
   "ows4R",
   "R.utils",
   "raster",
+  "rmapshaper",
   "rnaturalearth",
   "sf",
   "sfhotspot",
@@ -30,8 +35,7 @@ required_packages <- c(
   "tidyverse",
   "tmap",
   "tsibble",
-  "utils",
-  "wpgpDownloadR"
+  "utils"
 )
 
 # Check and install missing packages
@@ -41,16 +45,22 @@ for (package in required_packages) {
   }
 }
 
+# For packages not hosted on CRAN
+install.packages("devtools")
+devtools::install_github("crazycapivara/h3-r")
+
 # # acled.api - to access ACLED data
 # # fable - time series analysis
 # # ecmwfr - to access ECMWF seasonal precipitation forecast data via the Copernicus Climate Data Store or ECMWF
 # # h3 - to create the DGGS hexagons
 # # here - to use relative paths
+# # httr - for working with URLs and HTTP
 # # malariaAtlas - download malaria data
 # # MetBrewer - color palettes for plots
 # # ows4R - interface for OGC webservices
 # # R.utils - additional to the core package utils
 # # raster - working with raster data
+# # rjsonlite - for converting, streaming, validating and preffifying JSON data - really needed?
 # # rnaturalearth - to access the naturalearthdata database
 # # sf - simple features packages for handling vector GIS data
 # # sfhotspot - to perform hotspot analysis based on vector features
@@ -60,11 +70,14 @@ for (package in required_packages) {
 #   - # ggplot2 - plotting
 #   - # httr - generic webservice package
 #   - # lubridate - to work with dates
+    - # purr - for functional programming
 #   - # stringr - to manipulate string variables
 #   - # tidyr - for tidying data
+# # timetk - for working with timeseries data
 # # tmap - for map making
 # # tsibble - time series analysis
 # # utils - general purpose programming tasks
 # # wpgpDownloadR - to access the Worldpop database
 
+print("done")
 
