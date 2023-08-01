@@ -139,6 +139,25 @@ ggplot2::ggplot() +
   geom_sf(data = BDI_adm1)
 
 #-----------------------------
+# For re-runs: Load the admin layers
+
+BDI_adm0 <- st_read(here("data/geopackages","BDI_adm0.gpkg"))
+BDI_adm1 <- st_read(here("data/geopackages","BDI_adm1.gpkg"))
+BDI_adm2 <- st_read(here("data/geopackages","BDI_adm2.gpkg"))
+
+COD_adm0 <- st_read(here("data/geopackages","COD_adm0.gpkg"))
+COD_adm1 <- st_read(here("data/geopackages","COD_adm1.gpkg"))
+COD_adm2 <- st_read(here("data/geopackages","COD_adm2.gpkg"))
+
+UGA_adm0 <- st_read(here("data/geopackages","UGA_adm0.gpkg"))
+UGA_adm1 <- st_read(here("data/geopackages","UGA_adm1.gpkg"))
+UGA_adm2 <- st_read(here("data/geopackages","UGA_adm2.gpkg"))
+
+RWA_adm0 <- st_read(here("data/geopackages","RWA_adm0.gpkg"))
+RWA_adm1 <- st_read(here("data/geopackages","RWA_adm1.gpkg"))
+RWA_adm2 <- st_read(here("data/geopackages","RWA_adm2.gpkg"))
+
+#-----------------------------
 # Make area of interest layer
 
 # Step 1: The provinces of interest in COD
@@ -216,9 +235,9 @@ aoi_dissolve = st_union(aoi) %>%
   st_as_sf()
 
 #-----------------------------------------------
-# Created H3 DGGS hexagons over the entier AOI and removes the big lakes
+# Created H3 DGGS hexagons over the entire AOI and removes the big lakes
 # Makes an h3 index within the AOI
-h3_index <- h3::polyfill(aoi_dissolve, res = 6)
+h3_index <- h3::polyfill(aoi_dissolve, res = 5)
 
 # Converts the h3 language into sf polygons
 index_sf <- h3::h3_to_geo_boundary_sf(h3_index)
@@ -234,4 +253,4 @@ aoi_lakes <- st_as_sf(world_lakes) %>%
 # Erases the lakes from the hexagon layer
 index_sf_lakes <- rmapshaper::ms_erase(index_sf, aoi_lakes) 
 
-st_write(index_sf_lakes, here("data/geopackages", "AOI_hex6.gpkg"), append = TRUE)
+st_write(index_sf_lakes, here("data/geopackages", "AOI_hex5.gpkg"), append = TRUE)
