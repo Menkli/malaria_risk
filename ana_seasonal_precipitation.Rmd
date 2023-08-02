@@ -268,36 +268,124 @@ p + facet_grid(
 ```
 
 
-```{r precipitation forecasts}
+```{r load precipitation forecasts}
 # Load the forecast file(s)
 # For more information on the data see here: https://codes.ecmwf.int/grib/param-db/?id=173228
-prec_fore <- terra::rast(here::here("data","adaptor.mars.external-1683882560.0880013-4250-10-28368ed9-9c4a-49bc-b092-80e8f6821ab9.grib"))
+prec_fore <- rast(here("data/rasters","seasonal_prec_forecast_2020_01_lead123456.grib"))
 
 plot(prec_fore)
+names(prec_fore) %>% 
+  unique()
+time(prec_fore)
 
-# Disaggregate to the resolution of the CHIRPS data
-prec_fore_resample <- terra::resample(prec_fore, rast(r)) %>% 
-  mask(rast(r))
+# Set the correct layer names with the corresponding dates
+names(prec_fore) <- paste("SFC (Ground or water surface);", time(prec_fore))
+
+# Calculate the standard deviation and average for all AOI (all layers)
+std_dev <- global(prec_fore, fun = "sd")
+avg <- global(prec_fore, fun = "mean")
+
+# Create a new raster with deviation information
+deviation_raster <- ifel(prec_fore > (avg$mean + std_dev$sd), 1,
+                         ifel(prec_fore < (avg$mean - std_dev$sd), -1, 0))
+
+plot(deviation_raster)
+
+
+# Extract one band of the CHIRPS data to which the resolution of the forecast will be matched to
+r <- prec_aoi_brick$`chirps-v2.0.1999.01`
+#deviation_raster <- project(deviation_raster, r)
+# Resample the forecast resolution to the resolution of the CHIRPS data
+prec_fore_resample <- terra::resample(deviation_raster, rast(r), method = "bilinear") 
 plot(prec_fore_resample)
+# Mask the bbox of the forecast to the AOI
+prec_fore_deviation_resample_mask <- prec_fore_resample %>% 
+  mask(r)
+
+plot(prec_fore_deviation_resample_mask)
+
+prec_fore_2020_02 <- prec_fore_deviation_resample_mask[[1]]
+prec_fore_2020_03 <- prec_fore_deviation_resample_mask[[2]]
+prec_fore_2020_04 <- prec_fore_deviation_resample_mask[[3]]
+prec_fore_2020_05 <- prec_fore_deviation_resample_mask[[4]]
+prec_fore_2020_06 <- prec_fore_deviation_resample_mask[[5]]
+prec_fore_2020_07 <- prec_fore_deviation_resample_mask[[6]]
+
 # Classify values into average, more and less than average (?)
 
 # If, in any of the six coming months, it rains more than average in one of the rainy months (If prec_coming_june == above average && weight == 1, then assign value 1 to new column. If prec_coming_june == below average && weight == 1, then -1)
 
+# Rainy season = 1 point baseline risk
+# Rainy season definition = "> average_hist + 1 sd"
+# Above average_forecast weight: +1
 
-# Rainy season (> average_hist + 1 sd)
-# Above average_forecast +4
-# Average_forecast +3
-# Below_average forecast +2
+# Shoulder season = 0 points baseline risk
+# Shoulder season definition = "average_hist +-1 sd"
+# Above average_forecast weight: +1
 
-# Shoulder season (average_hist +-1 sd)
-# Above average_forecast +1
-# Average_forecast 0
-# Below_average forecast -1
+# Dry season baseline risk = -1
+# Dry season definition = "< average_hist - 1 sd"
+# Above average_forecast weight: +1
 
-# Dry season (< average_hist - 1 sd)
-# Above average_forecast -2
-# Average_forecast -3
-# Below_average forecast -4
+```
 
+```{r rainy season}
+month <- prec_long %>%
+  group_by(month_name, id)
 
+month_avg_all <- month %>% 
+  summarise(avg_value = mean(Precipitation, na.rm = TRUE))
+
+###
+# Start with 252 rasters
+plot(prec_aoi_brick)
+
+# Make 12 raster stacks (all January's, all February's,...)
+# Assuming you have a terra raster with 252 bands named "prec_aoi_brick"
+# Get the unique last two digits (months) from the band names
+months <- unique(substr(names(prec_aoi_brick), nchar(names(prec_aoi_brick))-1, nchar(names(prec_aoi_brick))))
+
+# Create 12 separate raster stacks, one for each month
+monthly_stacks <- list()
+for (month in months) {
+  # Subset the bands that match the current month
+  bands <- grep(paste0("\\.", month), names(prec_aoi_brick), value = TRUE)
+  monthly_raster <- subset(prec_aoi_brick, subset = bands)
+  # Rename the layers to remove the last two digits (month part) from the layer names
+  names(monthly_raster) <- sub(paste0("\\.", month), "", names(monthly_raster))
+  # Append the monthly raster stack to the list
+  monthly_stacks[[month]] <- monthly_raster
+}
+
+#### Monthly stack pixel means
+# Calculates the average rain in Jan, Feb, ... for each Pixel throughout the assessment period
+monthly_means <- lapply(months, function(month){
+  monthly_stack <- monthly_stacks[[month]]
+  monthly_mean  <- mean(monthly_stack, na.rm = TRUE)
+  return(monthly_mean)
+})
+
+# Make a stack from the 12 layers
+monthly_means_stack <- rast(monthly_means)
+
+# Calculate the sd for the precipitation throughout the year per pixel
+std_dev_per_pixel <- terra::stdev(monthly_means_stack, na.rm = TRUE)
+
+# Calculate the mean precipitation per pixel throughout the year
+mean_per_pixel <- terra::mean(monthly_means_stack, na.rm = TRUE)
+
+rainy_season <- ifel(monthly_means_stack > (mean_per_pixel$mean + std_dev_per_pixel$std), 1,
+                        ifel(monthly_means_stack < (mean_per_pixel$mean - std_dev_per_pixel), -1, 0))
+
+# Calculates standard deviation per pixel stack
+# raster_stacks_std_devs <- lapply(monthly_means, function(raster_stack){
+#   std_dev <- terra::stdev(raster_stack, na.rm = TRUE)
+#   return(std_dev)
+# })
+
+# For each pixel, check if its average value in Jan, Feb,... is one sd bigger or smaller than the avg
+
+# Integrate with forecast:
+# Overlay Jan + Jan, Feb + Feb 
+# Calulate total per cell for the 6 months
 ```
