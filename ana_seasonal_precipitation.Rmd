@@ -151,9 +151,18 @@ ggplot() +
 ## Load and prepare percipitation forecast data
 ```{r load precipitation forecasts}
 
-# Loads the forecast file(s)
+# Load the precipitation forecast data
+# Set the folder path
+folder_path <- here("data/rasters")
+
+# List all files in the folder with the .grib extension
+file_names <- list.files(folder_path, pattern = "\\.grib$", full.names = TRUE)
+
+# Loads the first element from the list (assuming that the folder contains only one grib file)
+prec_fore <- rast(file_names[[1]])
+
 # For more information on the data, see here: https://codes.ecmwf.int/grib/param-db/?id=173228
-prec_fore <- rast(here("data/rasters","seasonal_prec_forecast_2020_01_lead123456.grib"))
+# prec_fore <- rast(here("data/rasters","seasonal_prec_forecast_2020_01_lead123456.grib"))
 
 # Visualizes the raw forecast data
 plot(prec_fore)
