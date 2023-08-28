@@ -1,0 +1,325 @@
+---
+title: "Historical precipitation patterns and seasonal forecasts"
+author: "Linda Petutschnig"
+date: "31 5 2023"
+output: html_document
+---
+
+The aim of this indicator is to predict whether the upcoming six months will have favorable conditions for mosquito breeding. First, it assesses the months that can be defined as 'rainy season' for all individual locations of the AOI. Rainy season months are considered high risk months. In addition, it calculates which months in the next half year are expected to receive more precipitation than in an average year. If a month that is already part of the rainy season is expected to receive exceptionally high precipitation, the final risk is especially high.
+
+To define the rainy season, we use 30 year CHIRPS data (1990-2019) to establish precipitation patterns for each location. Monthly averages are calculated, and the yearly mean precipitation is derived as the average of these monthly values, to establish a baseline value.
+
+For each location, we also calculate the standard deviation of the monthly averages, describing the deviation from a distribution where every month would receieve the same amount of precipitation. Months with precipitation one standard deviation above the baseline are considered part of the rainy season and receive one point. Months with precipitation close to the baseline receive 0 points, indicating a shoulder season. Months with precipitation one standard deviation below the baseline are assigned -1 point. 
+
+Regarding precipitation forecasts, we use anomalies expressed in m s-1, which represent the depth of water equivalent in meters which fall per second. It is the depth the water would have if it were spread evenly over the grid box. Positive and negative anomalies indicate above-average and below-average precipitation, respectively. By comparing these anomalies with the global mean and standard deviation of each months' forecasts for the entire area, we assign points accordingly: +1 for forecasted precipitation that is > 1 standard deviation above the global mean, 0 for forecasted precipitation that is near the global mean, and - 1 for forecasted precipitation that is > 1 standard deviation below the global mean. 
+
+To combine both information layers, we sum the points obtained for each location from historical and forecast data. This process is carried out for the months of February to July 2020. The resulting six-layered output is further summarized into one final layer, for easier integration into the overall assessment.
+
+This script performs the following tasks:
+
+  - Loads pre-processed CHIRPS precipitation data and manipulates in several ways for data analysis
+  - Calculates averages
+  - Makes plots to explore the data
+  - Load seasonal precipitation forecast data
+  - Calculate the final indicator as described above
+  - Writes results into hexagons and exports
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load libraries
+
+```{r load libraryies, message = FALSE, warning = FALSE}
+
+library(httr)
+library(utils)
+library(raster)
+library(terra)
+library(sf)
+library(R.utils)
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(lubridate)
+library(tsibble)
+library(ggplot2)
+library(here)
+library(purrr)
+library(timetk)
+
+source(here("00_hexagonify.R"))
+
+```
+
+
+## Preparing the data for time series analysis
+
+```{r prepare data, message = FALSE, error = FALSE, warning = FALSE}
+
+# Loads the previously prepared brick
+prec_aoi_brick <- terra::rast(here::here("data/rasters", "perc_aoi_brick_90_19.tif"))
+
+# Convert raster cells to points
+prec_90_19_points <- rasterToPoints(raster::brick(prec_aoi_brick), spatial = TRUE) %>% 
+  st_as_sf() %>% 
+  mutate(id = row_number())
+
+# Convert to long
+# Transforming the data into long format
+# We want one Year column and a value column for our analysis.
+# The pivot_long function from the tidyr package is used to transform the data from wide to long format.
+prec_long <- prec_90_19_points %>% 
+  pivot_longer(
+    cols = starts_with("chirps.v2.0"),
+    names_to = "Month",
+    values_to = "Precipitation"
+  )
+
+# Cleans up the Year column
+# The Year column names are currently long strings like "Plasmodium..falciparum..Incidence..2000".
+# Only need the last four characters indicating the year are needed. 
+prec_long$Month <- str_sub(prec_long$Month,-7,-1)      
+prec_long$Month <- gsub("\\.(?=\\d{2}$)", "-", prec_long$Month, perl=TRUE)
+
+# Converts the Year column into date format and adds 1st 
+prec_long$Month <- as_date(paste0(prec_long$Month, "-01"))
+
+# Converting the long format data table to a time series tibble by id
+# Every geographical point is now represented as 360 individual rows (1990 to 2019, monthly) that share the same id.
+prec_tsbl <- as_tsibble(prec_long, key = id, index = Month)
+
+# Calculates the monthly precipitation averaging over all locations 
+avg <- prec_long %>%
+  group_by(Month) %>% 
+  summarise(avg_value = mean(Precipitation, na.rm = TRUE))
+
+# Creates a time series plot with each location represented by one line. 
+ggplot() + 
+  geom_line(data =  prec_long, aes(x = Month, y = Precipitation, group =id), color = "darkseagreen", alpha = 0.1) +
+  geom_line(data = avg, aes(x = Month, y = avg_value), color = "salmon", linewidth = 2) +
+  labs(x = "Month", y = "Precipitation", title = "Precipitation monthly 1990-2019") +
+  theme_minimal(base_size = 14) 
+
+```
+
+## Average monthly rainfall per year  
+The next chunk prepares and plots a graph showing the average yearly rainfall pattern of the years 1990-2019 for all locations combined.
+```{r average rainfall throughout the year, message = FALSE, error = FALSE, warning = FALSE}
+
+# We want one column that contains only the month 
+# Extracts from the current column "Month" (that actually contains a full date) the month and writes it into a new column "month_name" as a number
+prec_long$month_name <- month(prec_long$Month, label = FALSE)#, abbr = FALSE)
+
+# Calculates the 30-year average precipitation per month for all locations at once
+avg_monthly <- prec_long %>%
+  group_by(month_name) %>% 
+  summarise(avg_value = mean(Precipitation, na.rm = TRUE))
+
+# Creates a time series plot of the 30-year average precipitation per month for all locations at once
+ggplot() + 
+  geom_step(data =  avg_monthly, aes(x = month_name, y = avg_value), color = "salmon", linewidth = 1) +
+  labs(x = "Month", y = "Precipitation", title = "Precipitation monthly 1990-2019 whole AOI") +
+  theme_minimal(base_size = 14) 
+
+```
+## Zoom in on one randomly selected location 
+The next chunk prepares and plots precipitation data for one particular location/grid cell.
+The green line displays the 30-year monthly-average while the red points represent the individual years.
+}
+```{r single areas, message = FALSE, error = FALSE, warning = FALSE}
+
+id <- prec_long %>%
+  group_by(id)
+
+random_cell = id %>% 
+  subset(id == 10000) 
+
+monthly_summary = random_cell %>% 
+  group_by(month_name) %>% 
+  summarise(avg_value = mean(Precipitation, na.rm = TRUE))
+
+ggplot() + 
+  geom_point(data =  random_cell, aes(x = month_name, y = Precipitation), color = "salmon") +
+  geom_line(data = monthly_summary, aes(x = month_name, y = avg_value), color = "darkseagreen", linewidth = 1) +
+  labs(x = "Month", y = "Precipitation", title = "Precipitation monthly 1990-2019") +
+  theme_minimal(base_size = 14) 
+
+```
+
+## Load and prepare percipitation forecast data
+```{r load precipitation forecasts, message = FALSE, error = FALSE, warning = FALSE}
+
+# Load the precipitation forecast data
+# Set the folder path
+folder_path <- here("data/rasters")
+
+# List all files in the folder with the .grib extension
+file_names <- list.files(folder_path, pattern = "\\.grib$", full.names = TRUE)
+
+# Loads the first element from the list (assuming that the folder contains only one grib file)
+prec_fore <- rast(file_names[[1]])
+
+# For more information on the data, see here: https://codes.ecmwf.int/grib/param-db/?id=173228
+# prec_fore <- rast(here("data/rasters","seasonal_prec_forecast_2020_01_lead123456.grib"))
+
+# Visualizes the raw forecast data
+plot(prec_fore)
+
+# Gets the unique layer names in the raster stack
+names(prec_fore) %>% 
+  unique()
+
+# Gets the time information for each layer in the raster stack
+time(prec_fore)
+
+# Sets the correct layer names with the corresponding dates
+# This makes it easier to identify each layer by its date/time
+names(prec_fore) <- paste("SFC (Ground or water surface);", time(prec_fore))
+
+# Calculates the standard deviation and average for all AOI (all layers)
+std_dev <- global(prec_fore, fun = "sd")
+avg <- global(prec_fore, fun = "mean")
+
+# Creates a new raster with deviation information about which areas deviate more or less than one standard deviation from the global mean
+# 1: Deviates more than one standard deviation above the global mean
+# -1: Deviates more than one standard deviation below the global mean
+# 0: Deviates within one standard deviation of the global mean
+deviation_raster <- ifel(prec_fore > (avg$mean + std_dev$sd), 1,
+                         ifel(prec_fore < (avg$mean - std_dev$sd), -1, 0))
+
+# Visualizes the deviation raster
+plot(deviation_raster)
+
+
+# Extracts one band of the CHIRPS data to which the resolution of the forecast will be matched to
+r <- prec_aoi_brick$`chirps-v2.0.1999.01`
+
+#deviation_raster <- project(deviation_raster, r)
+
+# Resamples the forecast resolution to the resolution of the CHIRPS data using bilinear interpolation
+prec_fore_resample <- terra::resample(deviation_raster, rast(r), method = "bilinear")
+
+# Visualizes the resampled deviation raster
+plot(prec_fore_resample)
+
+# Masks the bbox of the forecast to the exact AOI
+# This ensures that the deviation raster only covers the area of interest ('r')
+prec_fore_deviation_resample_mask <- prec_fore_resample %>% 
+  mask(r)
+
+# Visualizes the masked deviation raster
+plot(prec_fore_deviation_resample_mask)
+
+```
+
+```{r rainy season, message = FALSE, error = FALSE, warning = FALSE}
+
+# Start with all CHIRPS layers
+# Make 12 raster stacks (all January's, all February's,...)
+# Assuming you have a terra raster with 252 bands named "prec_aoi_brick"
+# Get the unique last two digits (months) from the band names
+months <- unique(substr(names(prec_aoi_brick), nchar(names(prec_aoi_brick))-1, nchar(names(prec_aoi_brick))))
+
+# Create 12 separate raster stacks, one for each month
+monthly_stacks <- list()
+for (month in months) {
+  # Subset the bands that match the current month
+  bands <- grep(paste0("\\.", month), names(prec_aoi_brick), value = TRUE)
+  monthly_raster <- subset(prec_aoi_brick, subset = bands)
+  # Rename the layers to remove the last two digits (month part) from the layer names
+  names(monthly_raster) <- sub(paste0("\\.", month), "", names(monthly_raster))
+  # Append the monthly raster stack to the list
+  monthly_stacks[[month]] <- monthly_raster
+}
+
+# Monthly stack pixel means
+# Calculates the average rain in Jan, Feb, ... for each pixel throughout the assessment period
+monthly_means <- lapply(months, function(month){
+  monthly_stack <- monthly_stacks[[month]]
+  monthly_mean  <- mean(monthly_stack, na.rm = TRUE)
+  return(monthly_mean)
+})
+
+# Makes a stack from the 12 layers
+monthly_means_stack <- rast(monthly_means)
+
+# Calculates the sd for the precipitation throughout the year per pixel
+std_dev_per_pixel <- terra::stdev(monthly_means_stack, na.rm = TRUE)
+
+# Calculates the mean precipitation per pixel throughout the year
+mean_per_pixel <- terra::mean(monthly_means_stack, na.rm = TRUE)
+
+# Classifies each pixel stack based on its deviation from the mean precipitation throughout the year
+rainy_season <- ifel(monthly_means_stack > (mean_per_pixel$mean + std_dev_per_pixel$std), 1,
+                        ifel(monthly_means_stack < (mean_per_pixel$mean - std_dev_per_pixel), -1, 0))
+
+plot(rainy_season)
+# Calculates standard deviation per pixel stack
+# raster_stacks_std_devs <- lapply(monthly_means, function(raster_stack){
+#   std_dev <- terra::stdev(raster_stack, na.rm = TRUE)
+#   return(std_dev)
+# })
+
+# Integrate with forecast:
+# Overlay Jan + Jan, Feb + Feb , etc.
+# Calulates total per cell for the 6 months
+# Use lapply to perform the addition for each layer and return a list of raster layers
+summarized_layers <- lapply(1:6, function(i) {
+  # Get the i'th layer from each stack
+  layer1 <- prec_fore_deviation_resample_mask[[i]]
+  layer2 <- rainy_season[[i]]
+  
+# Performs the addition and returns the result as a raster layer
+  layer_sum <- layer1 + layer2
+  return(layer_sum)
+})
+
+# Converts the list of raster layers to a new raster stack
+risk_jan_jul_2020 <- rast(summarized_layers)
+
+# Visualizes the forecast risk 
+plot(risk_jan_jul_2020)
+
+# While having a forecast per month holds more information, for the sake of integration with the rest of the assessment, I will use the sum of the six months. 
+risk_sum <- sum(risk_jan_jul_2020)
+
+# Visualizes the final risk layer
+plot(risk_sum)
+```
+
+## Hexagonifies the precipitation results
+```{r integration with hexagons, message = FALSE, error = FALSE, warning = FALSE}
+
+# Loads hexagon layer from database
+aoi_shape <- st_read(here("data/geopackages","AOI_hex5.gpkg"))
+
+sf_use_s2(FALSE)
+
+# Aligns CRSs'
+risk_sum <- project(risk_sum, aoi_shape)
+
+# Calls the hexagonify function to aggregate the precipitation risk values into a hexagonal grid.
+aoi_shape$prec_risk <- hexagonify(raster(risk_sum), aoi_shape, mean)
+
+# Map
+# Defines the color palette for the map
+pal <- c('#60b564','#fed400')
+
+library(tmap)
+# Sets the map to an interactive mode
+tmap_mode("view")
+
+# Creates the map object
+tm_shape(aoi_shape) +
+  tm_polygons(col = "prec_risk", palette = pal, popup.vars = c("Risk of wet rainy season"="prec_risk")) +
+  tm_borders(lwd = 0.2) + 
+  tm_layout(title = "Risk of wet rainy season") + 
+  tm_fill(col = '#BFE1F4') + 
+  tm_borders(lwd = 1, col = "black") 
+
+#Writes the hexagons file into the db
+st_write(aoi_shape, here("data/geopackages","AOI_hex5_ind5.gpkg"), append = FALSE)
+
+```

@@ -1,0 +1,141 @@
+---
+title: "Data access: Historical precipitation patterns and seasonal forecasts"
+author: "Linda Petutschnig"
+date: "25 5 2023"
+output:
+  html_document:
+    theme: paper
+    highlight: default
+---
+
+This script performs the following tasks:
+
+## Historical precipitation data  
+- Accesses the CHIRPS database and retrieves monthly precipitation data from 1990 to 2019.
+- The data comes in tar.gz format and is unpacked before being cropped and masked to the area of interest.
+- A raster brick is created from the 360 monthly layers and saved to hard drive.
+- The tar.gz files and uncropped .tif files are deleted from hard drive. 
+
+## Seasonal precipitation forecast  
+- Accesses the ECMWF seasonal precipitation forecasts via the Copernicus Climate datastore.  
+- A request is passed to the datastore and the result is returend and saved in grib format.  
+- Writes the result to hard drive.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load libraries
+
+```{r load libraryies, message = FALSE, warning = FALSE}
+
+library(httr)
+library(utils)
+library(raster)
+library(terra)
+library(sf)
+library(R.utils)
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(here)
+
+```
+
+## Get historical data  
+
+```{r get histrorical data, message = FALSE, warning = FALSE}
+
+start_date <- as.Date("1990-01-01")
+end_date <- as.Date("2019-12-30")
+
+# Define a list of years and months
+date_range <- seq(start_date, end_date, by = "month")
+
+urls <- lapply(date_range, function(date){
+   sprintf("https://data.chc.ucsb.edu/products/CHIRPS-2.0/africa_monthly/tifs/chirps-v2.0.%s.%s.tif.gz", year = format(date, "%Y"), month = format(date, "%m"))
+})
+
+# Data download
+download_data <- function(urls, dest_dir) {
+  for (url in urls) {
+    filename <- basename(url)
+    dest_path <- file.path(dest_dir, filename)
+    download.file(url, dest_path, quiet = FALSE)
+  }
+}
+
+download_data(urls, here::here("data/rasters"))
+
+```
+
+## Unpack and stack data  
+
+```{r process data, message = FALSE, warning = FALSE}
+## Process data
+# set directory where tif.gz files are located
+tif_dir <- here::here("data/rasters")
+temp_dir <- tempdir()
+
+aoi_shape <- st_read(here("data/geopackages","AOI_hex5.gpkg"))
+# initialize list to store raster bricks
+
+for (file in list.files(tif_dir, pattern = ".tif.gz", full.names = TRUE)) {
+  # extract the file to a temporary directory
+  gunzip(filename = file, temporary = TRUE, remove = TRUE)
+    # get list of all files in the extracted directory
+  extracted_files <- list.files(temp_dir, full.names = TRUE)
+    # find the .tif file in the extracted directory
+  tif_file <- extracted_files[grep(".tif", extracted_files)]
+}
+
+extent <- extent(aoi_shape)
+# loop over each tar.gz file in the directory
+prec_aoi_brick <-  terra::rast(tif_file) %>% 
+  terra::crop(extent) %>% 
+  terra::mask(aoi_shape)
+
+# Executed
+writeRaster(prec_aoi_brick, here::here("data/rasters","perc_aoi_brick_90_19.tif"), overwrite = TRUE)
+
+# delete the extracted files
+file.remove(extracted_files)
+# delete the tar.gz files
+file.remove(list.files(tif_dir, pattern = ".tar.gz", full.names = TRUE))
+
+```
+# Seasonal forecast data
+
+```{r access ECMWF}
+library(ecmwfr)
+
+# To use this service, one must register as a user at the Copernicus climate Data Store and get an User ID and an API key
+# To do so, follow instructions here (see section Use: Copernicus Climate Data Store (CDS)): https://github.com/bluegreen-labs/ecmwfr
+# My personal credentials are stored in copernicus_credentials.R
+source(here("00_copernicus_credentials.R"))
+
+# Formulates a data request. The information can be copied from the Copernicus Climate Data Store.
+# To do so, open a dataset to download and check all your required parameters. Then click on "Show API request".
+request <- list(
+ "dataset_short_name" = "seasonal-postprocessed-single-levels",
+ "originating_centre" = "ecmwf",
+ "system" = "5",
+ "variable" = "total_precipitation_anomalous_rate_of_accumulation",
+ "product_type" = "ensemble_mean",
+ "year" = "2020",
+ "month" = c("01"),
+ "leadtime_month" = c("1", "2", "3", "4", "5", "6"),
+ "area" = "4.23/26.81/-5.02/35.0",
+ "format" = "grib",
+ "target" = "seasonal_prec_forecast_2020_01_lead123456.grib"
+ )
+
+# Actually downloads the data
+file <- wf_request(
+ user     = "36664",   # user ID (for authentification)
+ request  = request,  # the request
+ transfer = TRUE,     # download the file
+ path     = here("data/rasters")       # store data in current working directory
+ )
+
+```
