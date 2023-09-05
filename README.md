@@ -10,20 +10,46 @@ In the field of humanitarian work, coordination initiatives like INFORM undersco
 
 This repository presents a case study showcasing an approach to a reliable and transferable malaria risk assessment process. The collaboration involved stakeholders from MSF and Epicentre, organizations actively involved in malaria control in Africa. Together, we co-developed a conceptual composite-indicator framework for malaria risk assessment. The aim is to highlight the strengths and limitations of this approach, along with reporting on the current maturity of its transferability.
 
-
 ## Requirements
 
-Before running the scripts, make sure to follow these requirements:
+Before running the scripts, ensure that all requirements are met:
 
-- Get an ACLED access key and put your credentials into `acled_credentials.R`.
-- Get Copernicus ID and access key and put your credentials into `copernicus_credentials.R`.
-- Have Rtools installed
+1. **ACLED Access Key**: Obtain an ACLED access key and insert your credentials into `acled_credentials.R`.
 
-## General  
-- Filenames beginning with "acc_" are for accessing data from the web.
-- Filenames beginning with "ana_" for performing data manipulation and analysis tasks.
-- Scripts beginning with 00_ do not need to be run,
-- Run the scripts in consecutive order starting with 01_packages.R
+2. **Copernicus Credentials**: Get a Copernicus ID and access key and place your credentials in `copernicus_credentials.R`.
+
+3. **Rtools**: Make sure you have Rtools installed.
+
+### Manual Data Download
+
+Some data must be downloaded manually and saved in the "data/downloads" folder, which is automatically generated when you execute the `01_packages.R` script.
+
+#### 1. Common Operational Datasets of Rwanda
+   - Go to the Humanitarian Data Exchange Platform (HDX): [https://data.humdata.org/dataset/cod-ab-rwa](https://data.humdata.org/dataset/cod-ab-rwa).
+   - Download the .zip folder containing the Shapefiles.
+   - Unzip the data into `data/downloads`. This will create a new sub-folder named `rwa_adm_2006_nisr_wgs1984_20181002_shp`.
+
+#### 2. Malaria Incidence Data for 2018, 2019, and 2020
+   - Visit the website of the Malaria Atlas Project and select the Global_Pf_Incidence_Rate data: [https://data.malariaatlas.org/maps?layers=Malaria:202206_Global_Pf_Incidence_Rate,Malaria:202206_Global_Pf_Parasite_Rate](https://data.malariaatlas.org/maps?layers=Malaria:202206_Global_Pf_Incidence_Rate,Malaria:202206_Global_Pf_Parasite_Rate).
+   - Download the layer "Number of newly diagnosed Plasmodium falciparum cases per 1,000 population" for the years 2018, 2019, and 2020 into `data/downloads`. Ensure that the downloaded files in the folder are named `202206_Global_Pf_Incidence_Rate_2018.tif`, `202206_Global_Pf_Incidence_Rate_2019.tif`, and `202206_Global_Pf_Incidence_Rate_2020.tif`, respectively.
+
+## General Information
+
+- Filenames starting with "acc_" are used for accessing data from the web.
+- Filenames starting with "ana_" are for performing data manipulation and analysis tasks.
+- Scripts beginning with "00_" do not need to be executed.
+- Run the scripts in consecutive order, starting with `01_packages.R`.
+- Detailed information about the indicators can be found in the [publication].
+- Information about the source data can be found in the [Excel table].
+
+## Development Details
+
+The project was developed and successfully tested using the following environment:
+
+- R 4.2.3
+- RStudio 2023.03.1
+- Windows 10
+
 
 ## Overview of individual scripts  
 
@@ -71,45 +97,6 @@ This script conducts exploratory analysis on the CHIRPS precipitation data. It c
 
 ### 11_assemble_hexagons.R
 This script loads all the individual indicator results from the geopackages folder, combines them into one file, cleans the data, and calculates a version of the results where the values are normalized to a min-max stratification. It then sums the normalized values and divides the sum by 5 to calculate the final risk score. The script creates the final results file `All_indicators_final.gpkg` and writes it into the geopackages folder.
-
-
-### Output data
-The scripts produce the following outputs:  
-
-- A geopackage or .tif file at the end of each "acc_" file.
-- Then it loads the respective geopackage or .tif file at the beginning of each "ana_" file.
-
-The final indicators are added to a set of hexagonal polygons in a specific order:
-
-- Data ending with "_ind1.gpkg" holds the first indicator.
-- Data ending with "_ind2.gpkg" holds the second indicator.
-- ...  
-- The order of indicators is as follows:
-  - 1 = Armed conflicts
-  - 2 = Malaria prevalence
-  - 3 = Access to healthcare: Walking time to the nearest healthcare facility
-  - 4 = Access to healthcare: Population served by the same healthcare facility
-  - 5 = Seasonal precipitation
-
-## Development Details
-
-The project was developed and successfully tested using the following environment:
-
-- R 4.2.3
-- RStudio 2023.03.1
-- Windows 10
-
-## Important tasks to do in the beginning
-
-Some data must be downloaded manually and saved into the "data/downloads" folder.
-
-- RWA Common Operational Datasets admin boundaries from the HDX platform    
-  - Link:  [https://data.humdata.org/dataset/cod-ab-rwa](https://data.humdata.org/dataset/cod-ab-rwa)  
-  - Download the .zip folder containing the Shapefiles  
-  - Under `data/downloads`, unzip the data into a new sub-folder. The folder should automatically have the name `rwa_adm_2006_nisr_wgs1984_20181002_shp` 
-
-- Malaria incidence 2018, 2019 and 2020  
-Links:   [https://data.malariaatlas.org/maps?layers=Malaria:202206_Global_Pf_Incidence_Rate,Malaria:202206_Global_Pf_Parasite_Rate](https://data.malariaatlas.org/maps?layers=Malaria:202206_Global_Pf_Incidence_Rate,Malaria:202206_Global_Pf_Parasite_Rate)
 
 ## Features
 
