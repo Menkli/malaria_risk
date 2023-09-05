@@ -97,3 +97,22 @@ This script conducts exploratory analysis on the CHIRPS precipitation data. It c
 
 ### 11_assemble_hexagons.R
 This script loads all the individual indicator results from the geopackages folder, combines them into one file, cleans the data, and calculates a version of the results where the values are normalized to a min-max stratification. It then sums the normalized values and divides the sum by 5 to calculate the final risk score. The script creates the final results file `All_indicators_final.gpkg` and writes it into the geopackages folder.
+
+## Background on the development  
+
+| R Package         | Used for                                                        | Reference                          |
+|-------------------|-----------------------------------------------------------------|------------------------------------|
+| acled.api v1.1.6  | To access ACLED data                                            | Dworschak (2022)                   |
+| afrihealthsites   | To access healthcare facility location data                     |                                    |
+| ecmwfr v1.5.0     | To access ECMWF seasonal precipitation forecast data           | Hufkens (2023)                     |
+|                   | via the Copernicus Climate Data Store or ECMWF                 |                                    |
+| malariaAtlas v1.0.1 | To download malaria incidence datasets & healthcare accessibility dataset | Pfeffer et al. (2018; 2020)   |
+| Rnaturalearth v0.3.3 | To access lake-shapes to exclude them from the AOI             |                                    |
+| Other             |                                                                 |                                    |
+| h3 v3.7.2         | To create the DGGS hexagons                                     |                                    |
+| raster v3.6-23    | Working with raster data                                        |                                    |
+| Rsagacmd v0.4.1   | To use SAGA geoprocessing tools (“Accumulated cost” algorithm to calculate healthcare facility catchment areas) | |
+| sf v1.0-14        | Simple features packages for handling vector GIS data           | Pebesma et al. (2023)              |
+| sfhotspot v0.7.1  | To perform hotspot analysis based on ACLED data                | Ashby (2023)                       |
+| terra v1.7-39     | To work with raster files (successor of raster)                 |                                    |
+| tsibble v1.1.3    | Time series analysis                                            |                                    |
