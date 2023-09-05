@@ -97,9 +97,3 @@ This script conducts exploratory analysis on the CHIRPS precipitation data. It c
 
 ### 11_assemble_hexagons.R
 This script loads all the individual indicator results from the geopackages folder, combines them into one file, cleans the data, and calculates a version of the results where the values are normalized to a min-max stratification. It then sums the normalized values and divides the sum by 5 to calculate the final risk score. The script creates the final results file `All_indicators_final.gpkg` and writes it into the geopackages folder.
-
-## Features
-
-- Accesses and downloads Common Operational Datasets (administrative boundaries) from the web on all available administrative levels.
-- Provides armed conflicts locations and events information. [View here](https://menkli.github.io/malaria_risk/reports/armed_conflicts.html)
-- Presents long-term trends in malaria prevalence. [View here](https://menkli.github.io/malaria_risk/reports/malaria_prevalence.html)
