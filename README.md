@@ -18,16 +18,22 @@ Before running the scripts, make sure to follow these requirements:
 - Place the file `acled_credentials.R` in the root folder.
 - Place the file `copernicus_credentials.R`in the root folder.
 - Store the file `hexagonify.R` in the root folder.
-- Use filenames beginning with "acc_" for accessing data from the web.
-- Use filenames beginning with "ana_" for performing data manipulation and analysis tasks.
-- Export a geopackage or .tif file at the end of each "acc_" file.
-- Load the respective geopackage or .tif file at the beginning of each "ana_" file.
+- Have Rtools installed
+
+- Filenames beginning with "acc_" are for accessing data from the web.
+- Filenames beginning with "ana_" for performing data manipulation and analysis tasks.
 
 The folder structure should include the following sub-folders:
 
-- `root/data/downloads` - For manually downloaded data.
-- `root/data/raster` - For storing rasters created during the analysis.
-- `root/data/geopackages` - For storing geopackages created during the analysis.
+- `.../data/downloads` - For manually downloaded data.
+- `.../data/raster` - For storing rasters created during the analysis.
+- `.../data/geopackages` - For storing geopackages created during the analysis.
+
+The scripts produce the following outputs:  
+
+- A geopackage or .tif file at the end of each "acc_" file.
+- Then it loads the respective geopackage or .tif file at the beginning of each "ana_" file.
+
 
 ### Indicator Information
 
@@ -55,29 +61,35 @@ The project was developed and successfully tested using the following environmen
 
 To run the scripts and reproduce the analysis, follow this order:
 
-1. `packages.R`
-2. `aoi.R`
+1. `01_packages.R`
+2. `02_aoi.R`
 3. `population.Rmd`
-4. `acc_armed_conflicts.Rmd`
-5. `acc_malaria_prevalence.Rmd`
-6. `acc_access_to_healthcare.Rmd`
-7. `acc_seasonal_precipitation.Rmd`
-8. `ana_armed_conflicts.Rmd`
-9. `ana_malaria_prevalence.Rmd`
-10. `ana_access_to_healthcare.Rmd`
-11. `ana_seasonal_precipitation.Rmd`
+4. `03_acc_armed_conflicts.Rmd`
+5. `04_ana_armed_conflicts.Rmd`
+6. `05_acc_malaria_prevalence.Rmd`
+7. `06_ana_malaria_prevalence.Rmd`
+8. `07_acc_access_to_healthcare.Rmd`
+9. `08_ana_access_to_healthcare.Rmd`
+10. `09_acc_seasonal_precipitation.Rmd`
+11. `10_ana_seasonal_precipitation.Rmd`
+
+The following scripts do not need to be ran, but they need to be located in the root folder:
+
+1. `00_acled_credentials.R`
+2. `00_copernicus_credentials.R`
+3. `00_hexagonify.R`
 
 ## Important tasks to do in the beginning
 
-Some data must be downloaded manually. These must be manually saved into the "data/downloads" folder.
+Some data must be downloaded manually and saved into the "data/downloads" folder.
 
 - RWA Common Operational Datasets admin boundaries from the HDX platform    
   - Link:  [https://data.humdata.org/dataset/cod-ab-rwa](https://data.humdata.org/dataset/cod-ab-rwa)  
   - Download the .zip folder containing the Shapefiles  
-  - Under `data/downloads`, unzip the data into a new sub-folder. The folder should automatically get the name `rwa_adm_2006_nisr_wgs1984_20181002_shp` 
+  - Under `data/downloads`, unzip the data into a new sub-folder. The folder should automatically have the name `rwa_adm_2006_nisr_wgs1984_20181002_shp` 
 
 - Malaria incidence 2018, 2019 and 2020  
-Links:  
+Links:   [https://data.malariaatlas.org/maps?layers=Malaria:202206_Global_Pf_Incidence_Rate,Malaria:202206_Global_Pf_Parasite_Rate](https://data.malariaatlas.org/maps?layers=Malaria:202206_Global_Pf_Incidence_Rate,Malaria:202206_Global_Pf_Parasite_Rate)
 
 ## Features
 
