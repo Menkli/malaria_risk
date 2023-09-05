@@ -6,9 +6,29 @@
 
 ## Context
 
-In the field of humanitarian work, coordination initiatives like INFORM underscore the significance of comparable and standardized spatial risk assessments. These assessments are crucial for enabling timely and targeted responses to crises. Humanitarian aid organizations, operating at local and regional levels, focus on assisting the most vulnerable individuals. Hence, it is essential that risk assessments are transferable across different locations, time frames, and scopes. Achieving this level of transferability requires leveraging open data, adopting community standards, and establishing transparent, automated, and open workflows.
+**Conducting Transferable Malaria Risk Assessment**
 
-This repository presents a case study showcasing an approach to a reliable and transferable malaria risk assessment process. The collaboration involved stakeholders from MSF and Epicentre, organizations actively involved in malaria control in Africa. Together, we co-developed a conceptual composite-indicator framework for malaria risk assessment. The aim is to highlight the strengths and limitations of this approach, along with reporting on the current maturity of its transferability.
+Comparable and standardized risk assessments are vital for effective crisis response by humanitarian aid organizations, which focus on assisting vulnerable individuals. Achieving this requires leveraging open data, adopting community standards, and establishing transparent, automated workflows.
+
+This repository showcases a case study collaboration between geospatial researchers from the University of Salzburg (ZGIS) and stakeholders from Médecins Sans Frontières (MSF) and Epicentre, actively involved in African malaria control. Together, they developed a composite-indicator framework for malaria risk assessment.
+
+**Utilizing Reproducible Research with R and Python**
+
+R and Python, with their extensive package ecosystems, enable transparent and replicable workflows. The objective was to assess whether open-source technology could support a fully scripted assessment process, from data collection to analysis and export. An R-based setup was developed for reproducibility, and this GitHub repository (Petutschnig 2023) promotes transparency and workflow sharing.
+
+**Technical Maturity of Open-Source Software**
+
+R demonstrated a high level of quality in data harvesting, processing, analysis, and visualization. Data-specific packages served as interfaces to data providers' databases, while generic geospatial packages like sf, raster, or terra equaled commercial counterparts in functionality. However, some data access required manual downloads.
+
+**Challenges in Maintenance and Collaboration**
+
+Maintaining the reproducible workflow posed challenges, with links going dead and scripts breaking after package updates. Collaboration between risk modelers, software developers, and computer scientists is crucial for proper deployment and maintenance, preventing costly and ineffective technical issues.
+
+**Future Prospects**
+
+Future work could involve developing an R package for comprehensive risk assessment. Open-source libraries have streamlined data integration, reducing reliance on proprietary software. Growing communities in R and Python have been instrumental in advancing geospatial capabilities.
+
+In conclusion, open-source tools offer robust solutions for standardized risk assessments, emphasizing the importance of collaboration and proper maintenance in ensuring their effectiveness.
 
 ## Requirements
 
@@ -98,7 +118,7 @@ This script conducts exploratory analysis on the CHIRPS precipitation data. It c
 ### 11_assemble_hexagons.R
 This script loads all the individual indicator results from the geopackages folder, combines them into one file, cleans the data, and calculates a version of the results where the values are normalized to a min-max stratification. It then sums the normalized values and divides the sum by 5 to calculate the final risk score. The script creates the final results file `All_indicators_final.gpkg` and writes it into the geopackages folder.
 
-## Background on the development  
+## Package usage  
 
 | R Package         | Used for                                                        | Reference                          |
 |-------------------|-----------------------------------------------------------------|------------------------------------|
@@ -116,3 +136,5 @@ This script loads all the individual indicator results from the geopackages fold
 | sfhotspot v0.7.1  | To perform hotspot analysis based on ACLED data                | Ashby (2023)                       |
 | terra v1.7-39     | To work with raster files (successor of raster)                 |                                    |
 | tsibble v1.1.3    | Time series analysis                                            |                                    |
+
+Additional packages used, which are, however, unspecific to the case study, include here (v1.0.1), httr (v1.4.6), MetBrewer (v0.2.0), ows4R (0.3-5), tidyverse (v2.0.0), tmap (v3.3.3), tsibble (v1.3.3).  
