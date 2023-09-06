@@ -51,7 +51,7 @@ Some data must be downloaded manually and saved in the "data/downloads" folder, 
 
 #### 2. Malaria Incidence Data for 2018, 2019, and 2020
    - Visit the website of the Malaria Atlas Project and select the Global_Pf_Incidence_Rate data: [https://data.malariaatlas.org/maps?layers=Malaria:202206_Global_Pf_Incidence_Rate,Malaria:202206_Global_Pf_Parasite_Rate](https://data.malariaatlas.org/maps?layers=Malaria:202206_Global_Pf_Incidence_Rate,Malaria:202206_Global_Pf_Parasite_Rate).
-   - Download the layer "Number of newly diagnosed Plasmodium falciparum cases per 1,000 population" for the years 2018, 2019, and 2020 into `data/downloads`. Ensure that the downloaded files in the folder are named `202206_Global_Pf_Incidence_Rate_2018.tif`, `202206_Global_Pf_Incidence_Rate_2019.tif`, and `202206_Global_Pf_Incidence_Rate_2020.tif`, respectively.
+   - Download the layer "Number of newly diagnosed Plasmodium falciparum cases per 1,000 population" for the years 2018, 2019, and 2020 into `data/downloads`. Ensure that the downloaded files are named `202206_Global_Pf_Incidence_Rate_2018.tif`, `202206_Global_Pf_Incidence_Rate_2019.tif`, and `202206_Global_Pf_Incidence_Rate_2020.tif`, respectively.
 
 ## General Information
 
